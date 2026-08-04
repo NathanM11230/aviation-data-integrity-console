@@ -112,6 +112,8 @@ describe('lineage traversal', () => {
   it('walks a counterparty downstream to leases, aircraft, portfolios, models, and reports', () => {
     const lineage = lineageOf('counterparty', 'CP-UAL');
     expect(lineage).not.toBeNull();
+    expect(lineage!.upstream[0]?.entity.label).toBe('Open UAL FY2025 10-K on SEC.gov');
+    expect(lineage!.upstream[0]?.externalUrl).toContain('000010051726000023');
     const downstream = lineage!.downstream;
     const leaseNodes = downstream.filter((n) => n.entity.kind === 'lease');
     expect(leaseNodes).toHaveLength(4);

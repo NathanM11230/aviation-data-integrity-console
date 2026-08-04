@@ -155,15 +155,21 @@ test.describe('supporting views', () => {
     await expect(page.getByRole('heading', { name: /Why this priority/ })).toBeVisible();
   });
 
-  test('SEC lineage node opens a source view with working filing references', async ({ page }) => {
+  test('SEC lineage exposes the official filing directly and a complete source hub', async ({ page }) => {
     await page.getByRole('link', { name: 'Lineage & Impact' }).click();
-    await page.getByRole('button', { name: 'SEC EDGAR company facts' }).click();
+    const directFiling = page.getByRole('link', { name: 'Open UAL FY2025 10-K on SEC.gov' });
+    await expect(directFiling).toHaveAttribute('target', '_blank');
+    await expect(directFiling).toHaveAttribute(
+      'href',
+      'https://www.sec.gov/Archives/edgar/data/100517/000010051726000023/0000100517-26-000023-index.htm',
+    );
 
-    await expect(page).toHaveURL(/#\/lineage\/source\/SRC-SEC$/);
+    await page.getByLabel('Entity type').selectOption('source');
+    await page.getByLabel('Entity', { exact: true }).selectOption('SRC-SEC');
     await expect(page.getByLabel('Entity type')).toHaveValue('source');
     await expect(page.getByRole('heading', { name: 'Primary filing evidence' })).toBeVisible();
 
-    const filingLinks = page.getByRole('link', { name: 'Open FY2025 10-K' });
+    const filingLinks = page.getByRole('link', { name: 'Open FY2025 10-K on SEC.gov' });
     await expect(filingLinks).toHaveCount(3);
     await expect(filingLinks.first()).toHaveAttribute(
       'href',

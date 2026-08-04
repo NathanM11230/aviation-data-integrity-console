@@ -53,9 +53,15 @@ function Tree({ nodes }: { nodes: LineageNode[] }) {
       {nodes.map((n, i) => (
         <li key={`${n.entity.kind}-${n.entity.id}-${i}`}>
           <span className="rel">{n.relation}</span>
-          <button onClick={() => navigate(`lineage/${n.entity.kind}/${n.entity.id}`)}>
-            {n.entity.label}
-          </button>
+          {n.externalUrl ? (
+            <a href={n.externalUrl} target="_blank" rel="noreferrer">
+              {n.entity.label}
+            </a>
+          ) : (
+            <button onClick={() => navigate(`lineage/${n.entity.kind}/${n.entity.id}`)}>
+              {n.entity.label}
+            </button>
+          )}
           {n.children.length > 0 && <Tree nodes={n.children} />}
         </li>
       ))}
@@ -123,31 +129,6 @@ export function LineageView({ run, kind, id }: { run: PipelineRun; kind: string 
         </div>
       </div>
 
-      {lineage && (
-        <div className="panel">
-          <div className="panel-head">
-            <h2>Dependency tree</h2>
-            <span className="hint">Synthetic relationships for demonstration</span>
-          </div>
-          <div className="panel-body">
-            <div className="lineage-cols">
-              <div>
-                <p className="lineage-col-title">Upstream (where the data comes from)</p>
-                <Tree nodes={lineage.upstream} />
-              </div>
-              <div className="lineage-focus">
-                <div className="kind">{lineage.focus.kind}</div>
-                <div className="label">{lineage.focus.label}</div>
-              </div>
-              <div>
-                <p className="lineage-col-title">Downstream (what depends on it)</p>
-                <Tree nodes={lineage.downstream} />
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
       {activeKind === 'source' && activeId === 'SRC-SEC' && (
         <div className="panel">
           <div className="panel-head">
@@ -176,13 +157,38 @@ export function LineageView({ run, kind, id }: { run: PipelineRun; kind: string 
                       <td>{filing.filed}</td>
                       <td>
                         <a href={filing.filingUrl} target="_blank" rel="noreferrer">
-                          Open FY2025 10-K
+                          Open FY2025 10-K on SEC.gov
                         </a>
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {lineage && (
+        <div className="panel">
+          <div className="panel-head">
+            <h2>Dependency tree</h2>
+            <span className="hint">Synthetic relationships for demonstration</span>
+          </div>
+          <div className="panel-body">
+            <div className="lineage-cols">
+              <div>
+                <p className="lineage-col-title">Upstream (where the data comes from)</p>
+                <Tree nodes={lineage.upstream} />
+              </div>
+              <div className="lineage-focus">
+                <div className="kind">{lineage.focus.kind}</div>
+                <div className="label">{lineage.focus.label}</div>
+              </div>
+              <div>
+                <p className="lineage-col-title">Downstream (what depends on it)</p>
+                <Tree nodes={lineage.downstream} />
+              </div>
             </div>
           </div>
         </div>

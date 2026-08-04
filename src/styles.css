@@ -255,6 +255,8 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
   border: 0; background: none; padding: 1px 3px; color: var(--blue); font-size: 12px; text-align: left;
 }
 .tree button:hover { text-decoration: underline; color: var(--teal-dark); }
+.tree a { padding: 1px 3px; font-size: 12px; font-weight: 700; }
+.tree a:hover { color: var(--teal-dark); }
 .lineage-col-title { font-size: 11px; text-transform: uppercase; font-weight: 700; color: var(--faint); margin: 0 0 6px; }
 
 /* ---- Misc ---- */

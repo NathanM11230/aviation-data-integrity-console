@@ -16,6 +16,7 @@ import {
   REPORTS,
   SOURCE_SYSTEMS,
 } from '../data/portfolio';
+import { SEC_FILING_REFERENCES } from '../data/secData';
 
 export const TOTAL_EXPOSURE_USD =
   LEASES.reduce((s, l) => s + (AIRCRAFT.find((a) => a.id === l.aircraftId)?.marketValueUsd ?? 0), 0) +
@@ -171,6 +172,7 @@ export interface LineageNode {
   entity: EntityRef;
   relation: string;
   children: LineageNode[];
+  externalUrl?: string;
 }
 
 export interface LineageResult {
@@ -179,8 +181,15 @@ export interface LineageResult {
   downstream: LineageNode[];
 }
 
-function node(entity: EntityRef, relation: string, children: LineageNode[] = []): LineageNode {
-  return { entity, relation, children };
+function node(
+  entity: EntityRef,
+  relation: string,
+  children: LineageNode[] = [],
+  externalUrl?: string,
+): LineageNode {
+  return externalUrl
+    ? { entity, relation, children, externalUrl }
+    : { entity, relation, children };
 }
 
 function counterpartyRef(id: string): EntityRef {
@@ -199,10 +208,16 @@ export function lineageOf(kind: EntityRef['kind'], id: string): LineageResult | 
       if (!c) return null;
       const leases = LEASES.filter((l) => l.lesseeId === id);
       const loans = LOANS.filter((l) => l.borrowerId === id);
+      const filing = SEC_FILING_REFERENCES.find((x) => x.ticker === c.ticker);
       return {
         focus: counterpartyRef(id),
         upstream: [
-          node(ref('source', 'SRC-SEC', 'SEC EDGAR company facts'), 'financials sourced from'),
+          node(
+            ref('source', 'SRC-SEC', `Open ${c.ticker} FY2025 10-K on SEC.gov`),
+            'financials sourced from',
+            [],
+            filing?.filingUrl,
+          ),
         ],
         downstream: [
           ...leases.map((l) => {
