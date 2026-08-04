@@ -72,7 +72,7 @@ test.describe('decision risk queue workflow', () => {
     await expect(page.getByRole('cell', { name: 'DECISION' }).first()).toBeVisible();
 
     // 7. Required reports remain blocked — other blocking exceptions persist.
-    await page.getByRole('link', { name: 'Portfolio' }).click();
+    await page.getByRole('link', { name: 'Portfolio', exact: true }).click();
     await expect(page.getByRole('row', { name: /Quarterly Counterparty Credit Review/ })).toContainText('Blocked');
 
     // 8-9. Correct the remaining blocking exceptions and re-validate.
@@ -99,9 +99,11 @@ test.describe('decision risk queue workflow', () => {
     }
 
     // 10. Publication becomes eligible once nothing blocking remains open.
-    await page.getByRole('link', { name: 'Portfolio' }).click();
-    const blockedPills = page.locator('td .pill.blocked');
-    await expect(blockedPills).toHaveCount(0);
+    await page.getByRole('link', { name: 'Portfolio', exact: true }).click();
+    const publicationPanel = page.locator('.panel').filter({
+      has: page.getByRole('heading', { name: 'Publication eligibility' }),
+    });
+    await expect(publicationPanel.locator('td .pill.blocked')).toHaveCount(0);
     await expect(page.getByRole('row', { name: /Quarterly Counterparty Credit Review/ })).toContainText('Eligible');
   });
 
@@ -163,6 +165,45 @@ test.describe('supporting views', () => {
     await expect(alert).toContainText('CSV rejected');
     await expect(alert).toContainText('"ticker"');
     await expect(page.getByLabel('Dataset')).toHaveValue('clean');
+  });
+
+  test('a quarantined record can be released and validated again', async ({ page }) => {
+    await page.getByLabel('Dataset').selectOption('issues');
+    await page.getByRole('row', { name: /Duplicate source record/ }).click();
+    await expect(page.getByLabel('Action')).toHaveValue('quarantine');
+    await page.getByLabel('Reason (required)').fill('Duplicate submission held for provider review.');
+    await page.getByRole('button', { name: 'Record decision' }).click();
+    await expect(page.getByText('No longer detected.')).toBeVisible();
+
+    await expect(page.getByLabel('Action')).toHaveValue('reopen');
+    await page.getByLabel('Reason (required)').fill('Provider requested a second review of the original row.');
+    await page.getByRole('button', { name: 'Record decision' }).click();
+    await expect(page.getByText('No longer detected.')).toHaveCount(0);
+    await expect(page.locator('.inv-section .pill', { hasText: 'Open' })).toBeVisible();
+  });
+
+  test('reviewer names preserve spaces and malformed routes recover safely', async ({ page }) => {
+    await page.getByLabel('Reviewer name').fill('Nathan Mackey');
+    await expect(page.getByLabel('Reviewer name')).toHaveValue('Nathan Mackey');
+
+    await page.goto('./#/queue/%E0%A4%A');
+    await expect(page.getByRole('heading', { name: 'Decision Risk Queue' })).toBeVisible();
+    await expect(page.getByLabel('Exception investigation')).toHaveCount(0);
+
+    await page.goto('./#/not-a-view');
+    await expect(page).toHaveURL(/#\/queue$/);
+    await expect(page.getByRole('heading', { name: 'Decision Risk Queue' })).toBeVisible();
+  });
+
+  test('feed-level findings do not offer record-only actions', async ({ page }) => {
+    await page.getByLabel('Dataset').selectOption('issues');
+    await page.getByRole('row', { name: /Broken downstream dependency/ }).click();
+    const values = await page.getByLabel('Action').locator('option').evaluateAll((options) =>
+      options.map((option) => (option as HTMLOptionElement).value),
+    );
+    expect(values).not.toContain('approve_corrected');
+    expect(values).not.toContain('quarantine');
+    expect(values).toContain('reject');
   });
 
   test('no console errors across every view', async ({ page }) => {

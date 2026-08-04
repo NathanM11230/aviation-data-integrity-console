@@ -31,6 +31,43 @@ describe('review-action requirements', () => {
     expect(result.ok).toBe(false);
   });
 
+  it('rejects record actions that cannot change a feed-level finding', () => {
+    const { store } = makeStore();
+    store.getState().selectDataset('issues');
+    const feedFinding = selectRun(store.getState()).items.find(
+      (item) => item.exception.ruleId === 'broken_dependency',
+    )!.exception;
+    expect(
+      store.getState().decide({
+        exception: feedFinding,
+        action: 'approve_corrected',
+        reason: 'Attempted correction',
+        correctedValue: '1',
+      }).ok,
+    ).toBe(false);
+    expect(
+      store.getState().decide({
+        exception: feedFinding,
+        action: 'quarantine',
+        reason: 'Attempted quarantine',
+      }).ok,
+    ).toBe(false);
+    expect(store.getState().decisions).toHaveLength(0);
+  });
+
+  it('rejects non-numeric corrections for monetary fields', () => {
+    const { store } = makeStore();
+    const ex = firstException(store);
+    const result = store.getState().decide({
+      exception: ex,
+      action: 'approve_corrected',
+      reason: 'Bad correction',
+      correctedValue: 'not a number',
+    });
+    expect(result.ok).toBe(false);
+    expect(store.getState().decisions).toHaveLength(0);
+  });
+
   it('requires an assignee for reassignment', () => {
     const { store } = makeStore();
     const ex = firstException(store);
@@ -47,6 +84,23 @@ describe('review-action requirements', () => {
     const d = store.getState().decisions[0];
     expect(d?.reviewer).toBe('A. Analyst');
     expect(d?.reason).toBe('Provider confirmed bad extract');
+  });
+
+  it('preserves spaces while a reviewer name is being typed', () => {
+    const { store } = makeStore();
+    store.getState().setReviewer('Nathan ');
+    store.getState().setReviewer(`${store.getState().reviewer}Mackey`);
+    expect(store.getState().reviewer).toBe('Nathan Mackey');
+  });
+
+  it('keeps a rejected value blocking until another disposition resolves it', () => {
+    const { store } = makeStore();
+    const ex = firstException(store);
+    store.getState().decide({ exception: ex, action: 'reject', reason: 'Provider value is invalid' });
+    const run = selectRun(store.getState());
+    const item = run.items.find((candidate) => candidate.exception.id === ex.id);
+    expect(item?.status).toBe('rejected');
+    expect(run.publication.some((publication) => publication.blockedBy.includes(ex.id))).toBe(true);
   });
 });
 
@@ -100,6 +154,25 @@ describe('append-only audit behavior', () => {
     store.getState().decide({ exception: dup, action: 'quarantine', reason: 'Provider double-sent' });
     expect(store.getState().quarantinedRecordIds).toContain(dup.sourceRecordId);
     expect(store.getState().audit.map((a) => a.type)).toContain('QUARANTINE');
+  });
+
+  it('releases a quarantine and validates the original record again', () => {
+    const { store } = makeStore();
+    store.getState().selectDataset('issues');
+    let run = selectRun(store.getState());
+    const duplicate = run.items.find((item) => item.exception.ruleId === 'duplicate_source_record')!.exception;
+    store.getState().decide({ exception: duplicate, action: 'quarantine', reason: 'Duplicate load' });
+    run = selectRun(store.getState());
+    const cleared = run.items.find((item) => item.exception.id === duplicate.id)!;
+    expect(cleared.cleared).toBe(true);
+
+    store.getState().decide({ exception: cleared.exception, action: 'reopen', reason: 'Provider asked for re-review' });
+    run = selectRun(store.getState());
+    const reopened = run.items.find((item) => item.exception.id === duplicate.id);
+    expect(reopened?.cleared).toBe(false);
+    expect(reopened?.status).toBe('open');
+    expect(store.getState().quarantinedRecordIds).not.toContain(duplicate.sourceRecordId);
+    expect(store.getState().audit.map((event) => event.type)).toContain('RELEASE');
   });
 });
 
@@ -158,6 +231,22 @@ describe('CSV import through the store', () => {
     expect(run.version.id).toContain('FV-CSV');
     // Missing mapped fields surface as schema/dependency findings, not silence.
     expect(run.items.length).toBeGreaterThan(0);
+  });
+
+  it('does not apply quarantine state from an earlier import to a new file', () => {
+    const { store } = makeStore();
+    expect(store.getState().importCsv('ticker,period,revenue\nUAL,2025-12-31,', 'first.csv')).toBe(true);
+    let run = selectRun(store.getState());
+    const missingRevenue = run.items.find(
+      (item) => item.exception.ruleId === 'missing_required_field' && item.exception.field === 'revenue',
+    )!.exception;
+    store.getState().decide({ exception: missingRevenue, action: 'quarantine', reason: 'Incomplete row' });
+    const firstRecordId = missingRevenue.sourceRecordId;
+
+    expect(store.getState().importCsv('ticker,period,revenue\nDAL,2025-12-31,100', 'second.csv')).toBe(true);
+    run = selectRun(store.getState());
+    expect(run.originalVersion.records[0]?.recordId).not.toBe(firstRecordId);
+    expect(run.version.records).toHaveLength(1);
   });
 });
 

@@ -52,6 +52,13 @@ describe('validation rules', () => {
     expect(hits[0]?.blocking).toBe(true);
   });
 
+  it('missing_required_field fires when a mapped key is omitted from one record', () => {
+    const values = cleanValues('AAL');
+    delete values['currentAssets'];
+    const hits = byRule(validate(makeFeed([values])), 'missing_required_field');
+    expect(hits.some((hit) => hit.field === 'currentAssets')).toBe(true);
+  });
+
   it('missing_required_field carries the published magnitude as materiality when available', () => {
     const exs = validate(
       makeFeed([{ ...cleanValues('AAL'), currentAssets: null }]),
@@ -74,6 +81,14 @@ describe('validation rules', () => {
     const hit = byRule(exs, 'invalid_type')[0];
     expect(hit?.severity).toBe('high');
     expect(hit?.blocking).toBe(true);
+  });
+
+  it('invalid_type covers non-monetary fields and impossible calendar dates', () => {
+    const numericTicker = validate(makeFeed([{ ...cleanValues('UAL'), ticker: 123 }]));
+    expect(byRule(numericTicker, 'invalid_type').some((hit) => hit.field === 'ticker')).toBe(true);
+
+    const invalidDate = validate(makeFeed([{ ...cleanValues('UAL'), filed: '2025-02-30' }]));
+    expect(byRule(invalidDate, 'invalid_type').some((hit) => hit.field === 'filed')).toBe(true);
   });
 
   it('invalid_currency fires for non-USD reporting without conversion', () => {

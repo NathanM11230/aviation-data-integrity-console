@@ -31,6 +31,7 @@ This application ranks exceptions by **potential decision impact**, explains the
 2. **Impact is concrete.** An exception names the aircraft, leases, loans, portfolios, models, and reports downstream of the affected value, and the modeled exposure attached to them.
 3. **Blocking is surgical.** A missing `operatingCashFlow` blocks the Lease Cash Flow Model and the reports built on it — not the whole publication run.
 4. **Evidence survives decisions.** Corrections and quarantines never overwrite the incoming feed. A finding cleared by a review action stays visible, marked *no longer detected*, with its original evidence intact.
+5. **A decision cannot fake a pass.** Rejected values keep blocking, failed corrections remain open, and record-only actions are unavailable on feed-level findings. Reopening a corrected or quarantined record restores the original data and runs every control again.
 
 ---
 
@@ -56,7 +57,7 @@ src/
   ui/                    Presentation only; no validation logic
 ```
 
-The engine is pure and synchronous: `runPipeline(feed, published, corrections, decisions, quarantines)` returns the entire application state. The UI never computes a verdict; it renders one. That is why 88 unit tests can cover the product logic without rendering a component.
+The engine is pure and synchronous: `runPipeline(feed, published, corrections, decisions, quarantines)` returns the entire application state. The UI never computes a verdict; it renders one. That is why 107 unit tests can cover the product logic without rendering a component.
 
 **Data flow:** `Ingest → Normalize → Validate → Determine dependencies → Score → Human decision → Publish or quarantine → Audit`
 
@@ -182,15 +183,15 @@ npm run typecheck    # tsc -b, strict mode
 ## Testing
 
 ```bash
-npm test             # 88 unit tests (Vitest)
-npm run test:e2e     # 9 end-to-end tests (Playwright); builds and serves automatically
+npm test             # 107 unit tests (Vitest)
+npm run test:e2e     # 12 end-to-end tests (Playwright); builds and serves automatically
 ```
 
 First e2e run needs the browser binary: `npx playwright install chromium`.
 
-Unit tests cover every validation rule, score calculation and band boundaries, materiality banding, dependency traversal, blocked-output recalculation, schema-drift detection, review-action requirements, append-only audit behaviour, CSV parsing and rejection, persistence and reload, the clean baseline, and all eight demonstration cases.
+Unit tests cover every validation rule, score calculation and band boundaries, materiality banding, dependency traversal, blocked-output recalculation, schema-drift detection, review-action requirements, correction and quarantine release behavior, spreadsheet-safe exports, persisted-state validation, CSV parsing and rejection, persistence and reload, the clean baseline, and all eight demonstration cases.
 
-End-to-end tests cover the full required journey — switch to the issue dataset, investigate the $500M mismatch, view downstream exposure, quarantine the record, be refused without a reason, confirm the audit event, confirm reports stay blocked, correct the value, re-validate, and confirm publication becomes eligible — plus drift review, lineage traversal, CSV rejection, console-error checks, and horizontal-overflow checks at 1440×900 and 390×844.
+End-to-end tests cover the full required journey — switch to the issue dataset, investigate the $500M mismatch, view downstream exposure, quarantine the record, be refused without a reason, confirm the audit event, confirm reports stay blocked, correct the value, re-validate, and confirm publication becomes eligible — plus quarantine release, drift review, lineage traversal, CSV rejection, route recovery, reviewer-name editing, action eligibility, console-error checks, and horizontal-overflow checks at 1440×900 and 390×844.
 
 ## Deployment (GitHub Pages)
 
@@ -214,7 +215,7 @@ The Vite `base` is `/aviation-data-integrity-console/`, matching the repository 
 - The FY2024 comparatives are synthetic, so plausibility thresholds are demonstrative rather than calibrated.
 - Rename detection uses token overlap plus a type match. It explains its confidence but will not catch a rename that shares no tokens (`operatingIncome` → `opInc`).
 - Corrections apply to feeds whose incoming and normalized field names match. A renamed field is resolved by mapping review, not by correcting a value.
-- Quarantine is not reversible in the UI; releasing a quarantined record requires a session reset.
+- Reopening a cleared record releases its quarantine or active corrections and validates the original source values again; every release is added to the audit log.
 - Exposure is a static synthetic sum, not a valuation model. It measures *what is attached to the affected data*, not economic loss.
 - Single-user. There is no assignment queue, notification, or concurrent-reviewer conflict handling.
 

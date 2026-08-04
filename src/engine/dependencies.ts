@@ -46,20 +46,36 @@ function reportsUsingModels(models: readonly AnalyticalModel[]): Report[] {
 }
 
 /**
+ * Field-specific failures only compromise models that consume that field,
+ * even when the failure spans the whole feed. Cross-cutting failures such as
+ * currency, period, or an unidentified feed-level problem still taint every
+ * model because no model can safely isolate itself from them.
+ */
+function modelsAffectedByException(ex: ValidationException): AnalyticalModel[] {
+  if (ex.field !== null) {
+    const consumers = modelsUsingField(ex.field);
+    if (consumers.length > 0) return consumers;
+  }
+  return [...MODELS];
+}
+
+/**
  * Downstream impact of a validation exception: which synthetic exposure,
  * models, and reports depend on the affected value(s).
  */
 export function impactOfException(ex: ValidationException): ImpactResult {
-  const affectedModels =
-    ex.field !== null && ex.scope === 'record'
-      ? modelsUsingField(ex.field)
-      : [...MODELS]; // counterparty- and feed-scope issues taint every model input.
+  const affectedModels = modelsAffectedByException(ex);
 
   const affectedReports = reportsUsingModels(affectedModels);
 
-  const counterpartyIds = ex.counterpartyId
-    ? [ex.counterpartyId]
-    : COUNTERPARTIES.map((c) => c.id);
+  const linkedCounterparty = ex.counterpartyId
+    ? COUNTERPARTIES.find((c) => c.id === ex.counterpartyId)
+    : null;
+  const counterpartyIds = linkedCounterparty
+    ? [linkedCounterparty.id]
+    : ex.scope === 'feed'
+      ? COUNTERPARTIES.map((c) => c.id)
+      : [];
 
   const leases = LEASES.filter((l) => counterpartyIds.includes(l.lesseeId));
   const loans = LOANS.filter((l) => counterpartyIds.includes(l.borrowerId));
@@ -67,9 +83,11 @@ export function impactOfException(ex: ValidationException): ImpactResult {
   const portfolioIds = new Set([...leases.map((l) => l.portfolioId), ...loans.map((l) => l.portfolioId)]);
   const portfolios = PORTFOLIOS.filter((p) => portfolioIds.has(p.id));
 
-  const exposureUsd = ex.counterpartyId
-    ? counterpartyExposureUsd(ex.counterpartyId)
-    : TOTAL_EXPOSURE_USD;
+  const exposureUsd = linkedCounterparty
+    ? counterpartyExposureUsd(linkedCounterparty.id)
+    : ex.scope === 'feed'
+      ? TOTAL_EXPOSURE_USD
+      : 0;
 
   const entities: EntityRef[] = [
     ...counterpartyIds.map((id) => {
@@ -111,14 +129,14 @@ export interface BlockedState {
 
 /**
  * A model is blocked while any OPEN blocking exception touches its inputs.
- * Resolved decisions (corrected, override, rejected, quarantined, false
- * positive) release the block; reassignment keeps it open.
+ * Corrected, overridden, quarantined, and false-positive findings release the
+ * block. Rejection and reassignment keep it open until the bad value is no
+ * longer part of the active data or an explicit override is recorded.
  */
 export function recalculateBlocked(openBlocking: readonly ValidationException[]): BlockedState {
   const blockingByModel = new Map<string, string[]>();
   for (const ex of openBlocking) {
-    const models =
-      ex.field !== null && ex.scope === 'record' ? modelsUsingField(ex.field) : [...MODELS];
+    const models = modelsAffectedByException(ex);
     for (const m of models) {
       const list = blockingByModel.get(m.id) ?? [];
       list.push(ex.id);

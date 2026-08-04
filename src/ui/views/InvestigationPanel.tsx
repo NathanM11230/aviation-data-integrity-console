@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { QueueItem, PipelineRun } from '../../engine/pipeline';
 import { isOpenStatus } from '../../engine/pipeline';
 import type { ReviewAction } from '../../domain/types';
@@ -33,12 +33,43 @@ export function InvestigationPanel({
   const audit = useAppStore((s) => s.audit);
   const open = isOpenStatus(item.status);
 
-  const [action, setAction] = useState<ReviewAction>(open ? 'approve_corrected' : 'reopen');
+  const canCorrect =
+    ex.sourceRecordId !== null &&
+    ex.field !== null &&
+    run.originalVersion.schema.some((field) => field.name === ex.field);
+  const canQuarantine = ex.sourceRecordId !== null;
+  const openActions = OPEN_ACTIONS.filter(
+    (candidate) =>
+      (candidate !== 'approve_corrected' || canCorrect) &&
+      (candidate !== 'quarantine' || canQuarantine),
+  );
+  const defaultOpenAction: ReviewAction = canCorrect
+    ? 'approve_corrected'
+    : canQuarantine
+      ? 'quarantine'
+      : 'reject';
+  const availableActions = item.cleared
+    ? (canQuarantine ? (['reopen'] as ReviewAction[]) : [])
+    : open
+      ? openActions
+      : (['reopen'] as ReviewAction[]);
+  const defaultAction = item.cleared || !open ? 'reopen' : defaultOpenAction;
+
+  const [action, setAction] = useState<ReviewAction>(defaultAction);
   const [reason, setReason] = useState('');
   const [correctedValue, setCorrectedValue] = useState('');
   const [assignee, setAssignee] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [confirmation, setConfirmation] = useState<string | null>(null);
+
+  useEffect(() => {
+    setAction(defaultAction);
+    setError(null);
+  }, [defaultAction, ex.id]);
+
+  useEffect(() => {
+    setConfirmation(null);
+  }, [ex.id]);
 
   const source = SOURCE_SYSTEMS.find((s) => s.id === run.version.sourceSystemId);
   const cp = COUNTERPARTIES.find((c) => c.id === ex.counterpartyId);
@@ -52,8 +83,6 @@ export function InvestigationPanel({
     ? run.norm.records.find((r) => r.sourceRecordId === ex.sourceRecordId)?.fields[ex.field]
     : undefined;
   const relatedAudit = audit.filter((a) => a.exceptionId === ex.id);
-  const availableActions = open ? OPEN_ACTIONS : (['reopen'] as ReviewAction[]);
-
   const submit = () => {
     const result = decide({
       exception: ex,
@@ -235,13 +264,19 @@ export function InvestigationPanel({
             {confirmation}
           </div>
         )}
-        {item.cleared ? (
+        {item.cleared && availableActions.length === 0 ? (
           <p className="text-muted" style={{ fontSize: 12, margin: 0 }}>
             Closed by {item.decisions[item.decisions.length - 1]?.reviewer ?? 'a reviewer'}. No further action is
-            available while the current data passes this control.
+            available because this feed-level control no longer fires.
           </p>
         ) : (
         <div className="decision-form">
+          {item.cleared && (
+            <p className="text-muted" style={{ fontSize: 12, margin: 0 }}>
+              Reopening restores the original source record, removes active corrections or quarantine for that
+              record, and runs every control again.
+            </p>
+          )}
           <div>
             <label htmlFor="decision-action">Action</label>
             <select id="decision-action" value={action} onChange={(e) => setAction(e.target.value as ReviewAction)}>

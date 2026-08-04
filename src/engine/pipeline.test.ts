@@ -110,11 +110,13 @@ describe('decisions, corrections, and blocked-output recalculation', () => {
   const base = runIssues();
   const equationId = base.items.find((i) => i.exception.ruleId === 'accounting_equation')!.exception.id;
 
-  it('a correction removes the exception on re-run and preserves nothing silently', () => {
+  it('a correction clears the exception on re-run while retaining its evidence', () => {
     const run = runIssues([
       { sourceRecordId: 'R-AAL-FY2025-RESUB', field: 'liabilities', value: 65_501_000_000, exceptionId: equationId },
     ]);
-    expect(run.items.find((i) => i.exception.ruleId === 'accounting_equation')).toBeUndefined();
+    const retained = run.items.find((i) => i.exception.ruleId === 'accounting_equation');
+    expect(retained?.cleared).toBe(true);
+    expect(retained?.status).toBe('resolved_corrected');
     // The incoming feed object itself is untouched (original evidence preserved).
     const original = FEED_ISSUES.records.find((r) => r.recordId === 'R-AAL-FY2025-RESUB');
     expect(original?.values['liabilities']).toBe(66_001_000_000);
@@ -123,8 +125,21 @@ describe('decisions, corrections, and blocked-output recalculation', () => {
   it('quarantining a source record excludes it from processing', () => {
     const run = runIssues([], [], ['R-AAL-FY2025-DUP']);
     expect(run.version.records.find((r) => r.recordId === 'R-AAL-FY2025-DUP')).toBeUndefined();
-    expect(run.items.find((i) => i.exception.ruleId === 'duplicate_source_record')).toBeUndefined();
+    const retained = run.items.find((i) => i.exception.ruleId === 'duplicate_source_record');
+    expect(retained?.cleared).toBe(true);
+    expect(retained?.status).toBe('quarantined');
     expect(run.quarantinedRecordIds).toContain('R-AAL-FY2025-DUP');
+  });
+
+  it('keeps a failed correction open when the same control still fires', () => {
+    const run = runIssues(
+      [{ sourceRecordId: 'R-AAL-FY2025-RESUB', field: 'liabilities', value: 66_000_000_000, exceptionId: equationId }],
+      [decision(equationId, 'approve_corrected')],
+    );
+    const item = run.items.find((candidate) => candidate.exception.id === equationId);
+    expect(item?.cleared).toBe(false);
+    expect(item?.status).toBe('open');
+    expect(run.publication.some((publication) => publication.blockedBy.includes(equationId))).toBe(true);
   });
 
   it('resolving decisions releases blocks; publication becomes eligible when none remain open', () => {
@@ -163,11 +178,13 @@ describe('decisions, corrections, and blocked-output recalculation', () => {
     expect(run.originalVersion.records.find((r) => r.recordId === 'R-AAL-FY2025-DUP')).toBeDefined();
   });
 
-  it('does not resurrect undecided findings that a correction incidentally cleared', () => {
+  it('retains undecided findings that a correction incidentally cleared', () => {
     const run = runIssues([
       { sourceRecordId: 'R-AAL-FY2025-RESUB', field: 'liabilities', value: 65_501_000_000, exceptionId: 'EX|other' },
     ]);
-    expect(run.items.find((i) => i.exception.ruleId === 'accounting_equation')).toBeUndefined();
+    const item = run.items.find((i) => i.exception.ruleId === 'accounting_equation');
+    expect(item?.cleared).toBe(true);
+    expect(item?.status).toBe('resolved_corrected');
   });
 
   it('sorts actionable work above anything already decided', () => {
@@ -182,6 +199,7 @@ describe('decisions, corrections, and blocked-output recalculation', () => {
     expect(statusFromDecisions([decision('x', 'quarantine')])).toBe('quarantined');
     expect(statusFromDecisions([decision('x', 'reject', 1), decision('x', 'reopen', 2)])).toBe('open');
     expect(isOpenStatus('reassigned')).toBe(true);
+    expect(isOpenStatus('rejected')).toBe(true);
     expect(isOpenStatus('resolved_override')).toBe(false);
   });
 });

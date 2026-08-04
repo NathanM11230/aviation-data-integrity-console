@@ -55,12 +55,25 @@ describe('impactOfException', () => {
     expect(impact.dependencyCount).toBeGreaterThan(0);
   });
 
-  it('taints every model for counterparty-scope and feed-scope issues', () => {
+  it('taints every model for cross-cutting issues but scopes feed-wide field failures', () => {
     const cp = impactOfException(ex({ scope: 'counterparty', field: 'currency' }));
     expect(cp.models).toHaveLength(3);
     const feed = impactOfException(ex({ scope: 'feed', counterpartyId: null, field: null }));
     expect(feed.exposureUsd).toBe(TOTAL_EXPOSURE_USD);
     expect(feed.portfolios).toHaveLength(2);
+    const fieldFailure = impactOfException(
+      ex({ scope: 'feed', counterpartyId: null, field: 'operatingCashFlow', ruleId: 'broken_dependency' }),
+    );
+    expect(fieldFailure.models.map((model) => model.id)).toEqual(['MD-CASHFLOW']);
+    expect(fieldFailure.reports.map((report) => report.id)).not.toContain('RP-CREDIT');
+  });
+
+  it('does not attach the full synthetic portfolio to an unlinked record', () => {
+    const impact = impactOfException(ex({ counterpartyId: null, scope: 'record' }));
+    expect(impact.exposureUsd).toBe(0);
+    expect(impact.leases).toHaveLength(0);
+    expect(impact.loans).toHaveLength(0);
+    expect(impact.portfolios).toHaveLength(0);
   });
 });
 
@@ -83,6 +96,15 @@ describe('recalculateBlocked', () => {
     const blocked = recalculateBlocked([ex({ scope: 'feed', field: null, counterpartyId: null })]);
     expect(blocked.blockedModelIds.size).toBe(3);
     expect(blocked.blockedReportIds.size).toBe(4);
+  });
+
+  it('feed-scope failures with a known model field block only its consumers', () => {
+    const blocked = recalculateBlocked([
+      ex({ scope: 'feed', field: 'operatingCashFlow', counterpartyId: null, ruleId: 'broken_dependency' }),
+    ]);
+    expect([...blocked.blockedModelIds]).toEqual(['MD-CASHFLOW']);
+    expect(blocked.blockedReportIds.has('RP-PERF')).toBe(true);
+    expect(blocked.blockedReportIds.has('RP-CREDIT')).toBe(false);
   });
 });
 

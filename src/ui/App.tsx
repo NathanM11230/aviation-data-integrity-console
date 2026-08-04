@@ -31,7 +31,8 @@ const NAV_ITEMS: { path: string; label: string }[] = [
 
 export default function App() {
   const segments = useHashRoute();
-  const view = segments[0] ?? 'queue';
+  const requestedView = segments[0] ?? 'queue';
+  const view = NAV_ITEMS.some((item) => item.path === requestedView) ? requestedView : 'queue';
   const state = useAppStore();
   const run = selectRun(state);
   const openCount = run.items.filter(isActionable).length;
@@ -39,6 +40,10 @@ export default function App() {
   useEffect(() => {
     document.title = 'Aviation Data Reliability Control Plane | Nathan Mackey';
   }, []);
+
+  useEffect(() => {
+    if (requestedView !== view) navigate('queue');
+  }, [requestedView, view]);
 
   return (
     <div className="app">

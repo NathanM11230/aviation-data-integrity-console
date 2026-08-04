@@ -15,7 +15,9 @@ export default defineConfig({
   webServer: {
     command: 'npm run build && npm run preview -- --port 4173 --strictPort',
     url: 'http://localhost:4173/aviation-data-integrity-console/',
-    reuseExistingServer: !process.env['CI'],
+    // A stale preview can make local tests pass or fail against yesterday's
+    // bundle. Always build and own the server used by this test run.
+    reuseExistingServer: false,
     timeout: 120_000,
   },
 });

@@ -33,7 +33,11 @@ export function ageFrom(iso: string, now: number = Date.now()): string {
 }
 
 export function csvEscape(v: unknown): string {
-  const s = String(v ?? '');
+  const raw = String(v ?? '');
+  // Prevent analyst-controlled text from becoming a spreadsheet formula when
+  // an exported CSV is opened in Excel or similar software. Numeric values are
+  // left untouched so legitimate negative amounts remain numeric.
+  const s = typeof v === 'string' && /^[\t\r ]*[=+@-]/.test(raw) ? `'${raw}` : raw;
   return /[",\n]/.test(s) ? `"${s.replaceAll('"', '""')}"` : s;
 }
 

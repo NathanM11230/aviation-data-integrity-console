@@ -55,6 +55,32 @@ describe('csvToFeedVersion', () => {
     expect(empty.ok).toBe(false);
   });
 
+  it('rejects malformed quoted fields instead of silently reshaping the data', () => {
+    const unclosed = csvToFeedVersion('ticker,period\n"UAL,2025-12-31', 'x.csv', NOW);
+    expect(unclosed.ok).toBe(false);
+    if (!unclosed.ok) expect(unclosed.errors[0]).toContain('unclosed');
+
+    const trailing = csvToFeedVersion('ticker,period\n"UAL"oops,2025-12-31', 'x.csv', NOW);
+    expect(trailing.ok).toBe(false);
+    if (!trailing.ok) expect(trailing.errors[0]).toContain('closing quote');
+  });
+
+  it('accepts a UTF-8 BOM before the first header', () => {
+    const result = csvToFeedVersion('\uFEFFticker,period\nUAL,2025-12-31', 'bom.csv', NOW);
+    expect(result.ok).toBe(true);
+  });
+
+  it('gives different imports globally distinct version and record ids', () => {
+    const first = csvToFeedVersion('ticker,period\nUAL,2025-12-31', 'a.csv', NOW);
+    const second = csvToFeedVersion('ticker,period\nDAL,2025-12-31', 'b.csv', NOW);
+    expect(first.ok).toBe(true);
+    expect(second.ok).toBe(true);
+    if (first.ok && second.ok) {
+      expect(first.version.id).not.toBe(second.version.id);
+      expect(first.version.records[0]?.recordId).not.toBe(second.version.records[0]?.recordId);
+    }
+  });
+
   it('parses a valid file into a feed version with inferred schema and numeric coercion', () => {
     const r = csvToFeedVersion(
       'ticker,period,revenue,cash\nUAL,2025-12-31,"59,070,000,000",5942000000\nDAL,2025-12-31,63364000000,',

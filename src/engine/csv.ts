@@ -13,12 +13,20 @@ export interface CsvOk {
 
 export type CsvResult = CsvOk | CsvError;
 
+interface ParsedCsv {
+  rows: string[][];
+  errors: string[];
+}
+
 /** RFC-4180-style parser: quoted fields, escaped quotes, CRLF tolerant. */
-export function parseCsvText(text: string): string[][] {
+function parseCsv(text: string): ParsedCsv {
   const rows: string[][] = [];
+  const errors: string[] = [];
   let row: string[] = [];
   let cell = '';
   let inQuotes = false;
+  let closedQuote = false;
+  let rowNumber = 1;
   let i = 0;
   while (i < text.length) {
     const ch = text[i];
@@ -30,15 +38,51 @@ export function parseCsvText(text: string): string[][] {
           continue;
         }
         inQuotes = false;
+        closedQuote = true;
         i += 1;
         continue;
       }
+      cell += ch;
+      if (ch === '\n') rowNumber += 1;
+      i += 1;
+      continue;
+    }
+    if (closedQuote) {
+      if (ch === ' ' || ch === '\t') {
+        i += 1;
+        continue;
+      }
+      if (ch === ',') {
+        row.push(cell);
+        cell = '';
+        closedQuote = false;
+        i += 1;
+        continue;
+      }
+      if (ch === '\n' || ch === '\r') {
+        if (ch === '\r' && text[i + 1] === '\n') i += 1;
+        row.push(cell);
+        rows.push(row);
+        row = [];
+        cell = '';
+        closedQuote = false;
+        rowNumber += 1;
+        i += 1;
+        continue;
+      }
+      errors.push(`Row ${rowNumber} has an unexpected character after a closing quote.`);
+      closedQuote = false;
       cell += ch;
       i += 1;
       continue;
     }
     if (ch === '"') {
-      inQuotes = true;
+      if (cell.length === 0) {
+        inQuotes = true;
+      } else {
+        errors.push(`Row ${rowNumber} has a quote inside an unquoted field.`);
+        cell += ch;
+      }
       i += 1;
       continue;
     }
@@ -54,17 +98,28 @@ export function parseCsvText(text: string): string[][] {
       rows.push(row);
       row = [];
       cell = '';
+      rowNumber += 1;
       i += 1;
       continue;
     }
     cell += ch;
     i += 1;
   }
-  if (cell !== '' || row.length > 0) {
+  if (inQuotes) errors.push(`Row ${rowNumber} has an unclosed quoted field.`);
+  if (cell !== '' || row.length > 0 || closedQuote) {
     row.push(cell);
     rows.push(row);
   }
-  return rows.filter((r) => !(r.length === 1 && r[0] === ''));
+  return {
+    rows: rows.filter((r) => !(r.length === 1 && r[0] === '')),
+    errors: [...new Set(errors)],
+  };
+}
+
+export function parseCsvText(text: string): string[][] {
+  const parsed = parseCsv(text.replace(/^\uFEFF/, ''));
+  if (parsed.errors.length > 0) throw new Error(parsed.errors.join(' '));
+  return parsed.rows;
 }
 
 const NUMERIC_RE = /^-?\$?[\d,]+(\.\d+)?$/;
@@ -77,7 +132,10 @@ export function csvToFeedVersion(text: string, fileName: string, receivedAt: str
   if (text.trim() === '') return { ok: false, errors: ['The file is empty.'] };
   if (text.length > 2_000_000) return { ok: false, errors: ['The file exceeds the 2MB import limit.'] };
 
-  const rows = parseCsvText(text);
+  const normalizedText = text.replace(/^\uFEFF/, '');
+  const parsed = parseCsv(normalizedText);
+  if (parsed.errors.length > 0) return { ok: false, errors: parsed.errors };
+  const rows = parsed.rows;
   if (rows.length < 2) {
     return { ok: false, errors: ['The file needs a header row and at least one data row.'] };
   }
@@ -100,6 +158,7 @@ export function csvToFeedVersion(text: string, fileName: string, receivedAt: str
   if (dataRows.length > 500) errors.push('The file exceeds the 500-row import limit.');
   if (errors.length) return { ok: false, errors };
 
+  const fingerprint = contentFingerprint(`${fileName}\u0000${normalizedText}`);
   const records: SourceRecord[] = dataRows.map((r, idx) => {
     const values: Record<string, RawValue> = {};
     header.forEach((h, col) => {
@@ -108,7 +167,7 @@ export function csvToFeedVersion(text: string, fileName: string, receivedAt: str
         ? Number(cell.replace(/[$,]/g, ''))
         : cell;
     });
-    return { recordId: `R-CSV-${idx + 1}`, values };
+    return { recordId: `R-CSV-${fingerprint}-${idx + 1}`, values };
   });
 
   const schema: FeedSchemaField[] = header.map((h) => {
@@ -131,7 +190,7 @@ export function csvToFeedVersion(text: string, fileName: string, receivedAt: str
     ok: true,
     warnings,
     version: {
-      id: `FV-CSV-${receivedAt.slice(0, 10)}`,
+      id: `FV-CSV-${receivedAt.replace(/\D/g, '').slice(0, 17)}-${fingerprint}`,
       label: `Imported: ${fileName}`,
       sourceSystemId: 'SRC-UPLOAD',
       receivedAt,
@@ -140,4 +199,13 @@ export function csvToFeedVersion(text: string, fileName: string, receivedAt: str
       description: `Analyst CSV import of ${fileName} (${records.length} rows). Processed locally; never uploaded.`,
     },
   };
+}
+
+function contentFingerprint(value: string): string {
+  let hash = 0x811c9dc5;
+  for (let i = 0; i < value.length; i += 1) {
+    hash ^= value.charCodeAt(i);
+    hash = Math.imul(hash, 0x01000193);
+  }
+  return (hash >>> 0).toString(36);
 }

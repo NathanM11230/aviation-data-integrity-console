@@ -84,7 +84,10 @@ export function statusFromDecisions(decisions: readonly ReviewDecision[]): Excep
 
 /** Open statuses keep blocking publication until a resolving decision lands. */
 export function isOpenStatus(status: ExceptionStatus): boolean {
-  return status === 'open' || status === 'reassigned';
+  // Rejecting an incoming value does not make that value safe to publish. The
+  // finding keeps blocking until the record is corrected, quarantined, or a
+  // reviewer explicitly accepts an override / false-positive disposition.
+  return status === 'open' || status === 'reassigned' || status === 'rejected';
 }
 
 /** An item still requiring reviewer attention on the current data. */
@@ -119,6 +122,17 @@ function removeQuarantined(version: FeedVersion, quarantined: ReadonlySet<string
   return { ...version, records: version.records.filter((r) => !quarantined.has(r.recordId)) };
 }
 
+function expectedYearsFor(published: readonly PublishedRecord[], receivedAt: string): number[] {
+  const years = published
+    .map((record) => /^(\d{4})-/.exec(record.period)?.[1])
+    .filter((year): year is string => year !== undefined)
+    .map(Number)
+    .filter(Number.isFinite);
+  const receivedYear = Number(/^(\d{4})-/.exec(receivedAt)?.[1]);
+  const latest = years.length > 0 ? Math.max(...years) : receivedYear - 1;
+  return [latest, latest + 1];
+}
+
 /**
  * Deterministic end-to-end run:
  * ingest → normalize → validate → dependencies → score → apply decisions →
@@ -130,7 +144,13 @@ function evaluate(
 ): { norm: NormalizationResult; drift: DriftChange[]; exceptions: ValidationException[] } {
   const norm = normalizeFeed(version, published);
   const drift = version.id === FEED_CLEAN.id ? [] : detectDrift(FEED_CLEAN, version);
-  const exceptions = runValidation({ version, published, norm, drift, expectedYears: [2024, 2025] });
+  const exceptions = runValidation({
+    version,
+    published,
+    norm,
+    drift,
+    expectedYears: expectedYearsFor(published, version.receivedAt),
+  });
   return { norm, drift, exceptions };
 }
 
@@ -161,15 +181,29 @@ export function runPipeline(
   }
 
   const currentIds = new Set(current.exceptions.map((e) => e.id));
-  const clearedExceptions = original.exceptions.filter(
-    (e) => !currentIds.has(e.id) && decisionsByException.has(e.id),
-  );
+  const clearedExceptions = original.exceptions.filter((e) => !currentIds.has(e.id));
 
   const toItem = (exception: ValidationException, cleared: boolean): QueueItem => {
     const impact = impactOfException(exception);
     const score = scoreException(exception, impact, source);
     const exDecisions = decisionsByException.get(exception.id) ?? [];
-    const status = statusFromDecisions(exDecisions);
+    let status = statusFromDecisions(exDecisions);
+    if (cleared && exDecisions.length === 0) {
+      if (exception.sourceRecordId && quarantined.has(exception.sourceRecordId)) {
+        status = 'quarantined';
+      } else if (
+        exception.sourceRecordId &&
+        corrections.some((correction) => correction.sourceRecordId === exception.sourceRecordId)
+      ) {
+        status = 'resolved_corrected';
+      }
+    }
+    // A correction or quarantine only resolves a finding when the underlying
+    // control stops firing. If the same exception is still present, its data is
+    // still unsafe and the previous action remains evidence rather than a pass.
+    if (!cleared && (status === 'resolved_corrected' || status === 'quarantined')) {
+      status = 'open';
+    }
     const lastReassign = [...exDecisions].reverse().find((d) => d.action === 'reassign');
     return {
       exception,

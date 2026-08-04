@@ -68,7 +68,9 @@ export function LineageView({ run, kind, id }: { run: PipelineRun; kind: string 
   // Open exceptions that touch the focused entity, to support investigation.
   const related = run.items.filter((item) => {
     if (!isActionable(item)) return false;
-    if (activeKind === 'counterparty') return item.exception.counterpartyId === activeId || item.exception.counterpartyId === null;
+    if (activeKind === 'counterparty') {
+      return item.exception.counterpartyId === activeId || item.exception.scope === 'feed';
+    }
     if (activeKind === 'field') return item.exception.field === activeId;
     return item.impact.entities.some((e) => e.kind === activeKind && e.id === activeId);
   });

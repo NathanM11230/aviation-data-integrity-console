@@ -95,9 +95,10 @@ interface Draft {
 export function runValidation(input: ValidationInput): ValidationException[] {
   const { version, published, norm, drift, expectedYears } = input;
   const drafts: Draft[] = [];
+  const mappedFields = new Set(norm.mapping.map((mapping) => mapping.normalized));
 
   for (const record of norm.records) {
-    validateRecord(record, published, expectedYears, drafts);
+    validateRecord(record, published, expectedYears, mappedFields, drafts);
   }
 
   // Duplicate and stale records surfaced during normalization.
@@ -236,6 +237,7 @@ function validateRecord(
   record: NormalizedRecord,
   published: readonly PublishedRecord[],
   expectedYears: number[],
+  mappedFields: ReadonlySet<FieldKey>,
   drafts: Draft[],
 ): void {
   const anchor = record.sourceRecordId;
@@ -245,14 +247,12 @@ function validateRecord(
     counterpartyId: record.counterpartyId,
     scope: 'record' as const,
   };
-  const covered = new Set(Object.keys(record.fields));
-
   // Missing required fields (only where the feed maps the field at all —
   // feed-wide mapping loss is reported once by the schema/dependency rules).
   for (const field of REQUIRED_FIELDS) {
     const nfv = record.fields[field];
-    if (!covered.has(field) && nfv === undefined) continue;
-    if (nfv !== undefined && isEmpty(nfv.raw)) {
+    if (!mappedFields.has(field)) continue;
+    if (nfv === undefined || isEmpty(nfv.raw)) {
       const prior = MONETARY_FIELDS.includes(field) ? publishedValue(published, record.ticker, field) : null;
       drafts.push({
         ...base,
@@ -263,6 +263,38 @@ function validateRecord(
         observed: 'Empty',
         recommendedAction: 'Reject the incoming record or approve a corrected value sourced from the filing.',
         materialityUsd: prior !== null ? Math.abs(prior) : null,
+      });
+    }
+  }
+
+  // Type checks for identifiers and dates. Monetary values are handled below
+  // because recoverable formatted numerics receive a different disposition.
+  for (const field of ['ticker', 'airline', 'currency'] as const) {
+    const nfv = record.fields[field];
+    if (!nfv || isEmpty(nfv.raw) || typeof nfv.raw === 'string') continue;
+    drafts.push({
+      ...base,
+      ruleId: 'invalid_type',
+      field,
+      explanation: `${record.ticker || 'This record'} "${field}" must be text, but the incoming value is ${typeof nfv.raw}.`,
+      expected: 'Text value',
+      observed: `${String(nfv.raw)} (${typeof nfv.raw})`,
+      recommendedAction: 'Reject the incoming value or approve a corrected text value.',
+    });
+  }
+
+  for (const field of ['period', 'filed'] as const) {
+    const nfv = record.fields[field];
+    if (!nfv || isEmpty(nfv.raw)) continue;
+    if (typeof nfv.raw !== 'string' || !isIsoCalendarDate(nfv.raw)) {
+      drafts.push({
+        ...base,
+        ruleId: 'invalid_type',
+        field,
+        explanation: `${record.ticker || 'This record'} "${field}" is not a valid ISO calendar date.`,
+        expected: 'A real calendar date in YYYY-MM-DD format',
+        observed: `${String(nfv.raw)} (${typeof nfv.raw})`,
+        recommendedAction: 'Reject the incoming value or approve a corrected ISO date.',
       });
     }
   }
@@ -379,7 +411,12 @@ function validateRecord(
   // Filing sequence.
   const period = record.fields['period']?.value;
   const filed = record.fields['filed']?.value;
-  if (typeof period === 'string' && typeof filed === 'string') {
+  if (
+    typeof period === 'string' &&
+    typeof filed === 'string' &&
+    isIsoCalendarDate(period) &&
+    isIsoCalendarDate(filed)
+  ) {
     const p = Date.parse(period);
     const f = Date.parse(filed);
     if (Number.isFinite(p) && Number.isFinite(f) && f <= p) {
@@ -396,11 +433,11 @@ function validateRecord(
   }
 
   // Expected reporting period.
-  if (typeof period === 'string') {
-    const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(period);
-    const year = match ? Number(match[1]) : NaN;
-    const monthDay = match ? `${match[2]}-${match[3]}` : '';
-    if (!match || monthDay !== '12-31' || !expectedYears.includes(year)) {
+  if (typeof period === 'string' && isIsoCalendarDate(period)) {
+    const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(period)!;
+    const year = Number(match[1]);
+    const monthDay = `${match[2]}-${match[3]}`;
+    if (monthDay !== '12-31' || !expectedYears.includes(year)) {
       drafts.push({
         ...base,
         ruleId: 'unexpected_period',
@@ -412,6 +449,20 @@ function validateRecord(
       });
     }
   }
+}
+
+function isIsoCalendarDate(value: string): boolean {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (!match) return false;
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  return (
+    date.getUTCFullYear() === year &&
+    date.getUTCMonth() === month - 1 &&
+    date.getUTCDate() === day
+  );
 }
 
 function finalize(d: Draft, versionId: string): ValidationException {

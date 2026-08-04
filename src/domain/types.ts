@@ -346,7 +346,8 @@ export interface AuditEvent {
     | 'EXPORT'
     | 'IMPORT'
     | 'DATASET'
-    | 'QUARANTINE';
+    | 'QUARANTINE'
+    | 'RELEASE';
   message: string;
   exceptionId?: string;
 }

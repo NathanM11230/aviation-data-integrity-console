@@ -25,7 +25,7 @@ export function QueueView({ run, selectedId }: { run: PipelineRun; selectedId: s
   const [sortKey, setSortKey] = useState<SortKey>('score');
   const [sortDesc, setSortDesc] = useState(true);
 
-  const decodedSelected = selectedId ? decodeURIComponent(selectedId) : null;
+  const decodedSelected = selectedId ? safeDecodeURIComponent(selectedId) : null;
   const selected = run.items.find((i) => i.exception.id === decodedSelected) ?? null;
   // With the investigation panel open the queue becomes a scannable index:
   // the dropped columns are all restated in the panel itself.
@@ -35,8 +35,13 @@ export function QueueView({ run, selectedId }: { run: PipelineRun; selectedId: s
     let items = run.items;
     if (band !== 'all') items = items.filter((i) => i.score.band === band);
     if (status !== 'all') items = items.filter((i) => i.status === status);
-    if (cp !== 'all')
-      items = items.filter((i) => i.exception.counterpartyId === cp || (cp === 'feed' && i.exception.counterpartyId === null));
+    if (cp !== 'all') {
+      items = items.filter((i) => {
+        if (cp === 'feed') return i.exception.scope === 'feed';
+        if (cp === 'unlinked') return i.exception.counterpartyId === null && i.exception.scope !== 'feed';
+        return i.exception.counterpartyId === cp;
+      });
+    }
     if (model !== 'all') items = items.filter((i) => i.impact.models.some((m) => m.id === model));
     const dir = sortDesc ? -1 : 1;
     return [...items].sort((a, b) => {
@@ -186,6 +191,7 @@ export function QueueView({ run, selectedId }: { run: PipelineRun; selectedId: s
               </option>
             ))}
             <option value="feed">Feed-wide</option>
+            <option value="unlinked">Unlinked records</option>
           </select>
         </div>
         <div className="filter">
@@ -213,16 +219,20 @@ export function QueueView({ run, selectedId }: { run: PipelineRun; selectedId: s
             <table>
               <thead>
                 <tr>
-                  <th className="sortable num" onClick={() => onSort('score')} aria-sort={sortKey === 'score' ? (sortDesc ? 'descending' : 'ascending') : undefined}>
+                  <th className="sortable num" aria-sort={sortKey === 'score' ? (sortDesc ? 'descending' : 'ascending') : undefined}>
+                    <button type="button" className="sort-button" onClick={() => onSort('score')}>
                     Priority {sortKey === 'score' ? (sortDesc ? '▾' : '▴') : ''}
+                    </button>
                   </th>
                   <th>Band</th>
                   <th>Counterparty</th>
                   <th>Problem</th>
                   {!compact && (
                     <>
-                      <th className="sortable num" onClick={() => onSort('exposure')} aria-sort={sortKey === 'exposure' ? (sortDesc ? 'descending' : 'ascending') : undefined}>
+                      <th className="sortable num" aria-sort={sortKey === 'exposure' ? (sortDesc ? 'descending' : 'ascending') : undefined}>
+                        <button type="button" className="sort-button" onClick={() => onSort('exposure')}>
                         Exposure {sortKey === 'exposure' ? (sortDesc ? '▾' : '▴') : ''}
+                        </button>
                       </th>
                       <th className="num">Deps</th>
                       <th className="num">Blocks</th>
@@ -263,8 +273,18 @@ export function QueueView({ run, selectedId }: { run: PipelineRun; selectedId: s
 }
 
 function cpLabel(item: QueueItem): string {
-  if (!item.exception.counterpartyId) return 'Feed-wide';
+  if (!item.exception.counterpartyId) {
+    return item.exception.scope === 'feed' ? 'Feed-wide' : 'Unlinked record';
+  }
   return COUNTERPARTIES.find((c) => c.id === item.exception.counterpartyId)?.ticker ?? item.exception.counterpartyId;
+}
+
+function safeDecodeURIComponent(value: string): string | null {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return null;
+  }
 }
 
 function QueueRow({
@@ -279,7 +299,7 @@ function QueueRow({
   compact: boolean;
 }) {
   const ex = item.exception;
-  const blocks = ex.blocking && isActionable(item) ? item.impact.reports.filter((r) => r.required).length : 0;
+  const blocks = ex.blocking && isActionable(item) ? item.impact.reports.length : 0;
   const lastDecision = item.decisions[item.decisions.length - 1];
   return (
     <tr

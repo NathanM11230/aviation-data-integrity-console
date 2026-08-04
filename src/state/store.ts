@@ -9,9 +9,10 @@ import type {
   ReviewDecision,
   ValidationException,
 } from '../domain/types';
+import { MONETARY_FIELDS } from '../domain/types';
 import { FEED_CLEAN, FEED_ISSUES, PUBLISHED_FY2024, PUBLISHED_THROUGH_FY2025 } from '../data/feeds';
 import type { PublishedRecord } from '../data/feeds';
-import { runPipeline, type PipelineRun } from '../engine/pipeline';
+import { isOpenStatus, runPipeline, type PipelineRun } from '../engine/pipeline';
 import { csvToFeedVersion } from '../engine/csv';
 import { LocalStoragePersistence, MemoryPersistence } from './persistence';
 
@@ -68,6 +69,19 @@ export interface AppState {
 
 function nowIso(): string {
   return new Date().toISOString();
+}
+
+function actorName(reviewer: string): string {
+  return reviewer.trim() || 'Unnamed reviewer';
+}
+
+function correctionValue(field: Correction['field'], raw: string): string | number | null {
+  const trimmed = raw.trim();
+  if (!MONETARY_FIELDS.includes(field)) return trimmed;
+  const cleaned = trimmed.replace(/[$,\s]/g, '');
+  if (!/^-?\d+(\.\d+)?$/.test(cleaned)) return null;
+  const numeric = Number(cleaned);
+  return Number.isFinite(numeric) ? numeric : null;
 }
 
 let idCounter = 0;
@@ -174,7 +188,7 @@ export function createAppStore(persistence: PersistenceAdapter) {
       set({
         datasetId: id,
         selectedExceptionId: null,
-        audit: [...s.audit, auditEvent(s, s.reviewer, 'DATASET', `Switched active dataset to "${label}".`)],
+        audit: [...s.audit, auditEvent(s, actorName(s.reviewer), 'DATASET', `Switched active dataset to "${label}".`)],
       });
       appendValidationEvent(label);
       persist();
@@ -185,7 +199,7 @@ export function createAppStore(persistence: PersistenceAdapter) {
       set({
         audit: [
           ...s.audit,
-          auditEvent(s, s.reviewer, 'EXPORT', `Exported ${rows} ${what} row(s) to CSV.`),
+          auditEvent(s, actorName(s.reviewer), 'EXPORT', `Exported ${rows} ${what} row(s) to CSV.`),
         ],
       });
       persist();
@@ -194,7 +208,9 @@ export function createAppStore(persistence: PersistenceAdapter) {
     selectException: (id) => set({ selectedExceptionId: id }),
 
     setReviewer: (name) => {
-      set({ reviewer: name.trim() || 'Unnamed reviewer' });
+      // Preserve in-progress whitespace so names such as "Nathan Mackey" can
+      // be typed naturally. Audit events normalize the final actor label.
+      set({ reviewer: name });
       persist();
     },
 
@@ -211,12 +227,46 @@ export function createAppStore(persistence: PersistenceAdapter) {
       }
 
       const s = get();
+      const activeRun = selectRun(s);
+      const currentItem = activeRun.items.find((item) => item.exception.id === exception.id);
+      if (!currentItem) {
+        return { ok: false, error: 'This exception is no longer available in the active dataset.' };
+      }
+      const currentException = currentItem.exception;
+      if (currentItem.cleared && action !== 'reopen') {
+        return { ok: false, error: 'This finding is no longer detected. Reopen it before taking another action.' };
+      }
+      if (action === 'reopen' && !currentItem.cleared && isOpenStatus(currentItem.status)) {
+        return { ok: false, error: 'This exception is already open.' };
+      }
+      if (action === 'quarantine' && !currentException.sourceRecordId) {
+        return { ok: false, error: 'Feed-level findings cannot quarantine a nonexistent source record.' };
+      }
+
+      let parsedCorrection: string | number | null = null;
+      if (action === 'approve_corrected') {
+        if (!currentException.sourceRecordId || !currentException.field) {
+          return { ok: false, error: 'This finding cannot be resolved with a record-level value correction.' };
+        }
+        const fieldIsWritable = activeRun.originalVersion.schema.some(
+          (field) => field.name === currentException.field,
+        );
+        if (!fieldIsWritable) {
+          return { ok: false, error: 'The source field is not writable in this feed. Resolve its mapping instead.' };
+        }
+        parsedCorrection = correctionValue(currentException.field, correctedValue ?? '');
+        if (parsedCorrection === null) {
+          return { ok: false, error: 'Enter a valid numeric correction for this monetary field.' };
+        }
+      }
+
+      const actor = actorName(s.reviewer);
       const decision: ReviewDecision = {
         id: freshId('RD'),
-        exceptionId: exception.id,
+        exceptionId: currentException.id,
         action,
         reason: reason.trim(),
-        reviewer: s.reviewer,
+        reviewer: actor,
         at: nowIso(),
         ...(correctedValue !== undefined ? { correctedValue: correctedValue.trim() } : {}),
         ...(assignee !== undefined ? { assignee: assignee.trim() } : {}),
@@ -230,51 +280,72 @@ export function createAppStore(persistence: PersistenceAdapter) {
       audit.push(
         auditEvent(
           { audit },
-          s.reviewer,
+          actor,
           'DECISION',
-          `${ACTION_LABELS[action]} on ${exception.id} (${exception.ruleId}). Reason: ${decision.reason}`,
-          exception.id,
+          `${ACTION_LABELS[action]} on ${currentException.id} (${currentException.ruleId}). Reason: ${decision.reason}`,
+          currentException.id,
         ),
       );
 
-      if (action === 'approve_corrected' && exception.sourceRecordId && exception.field) {
-        const numeric = Number(String(correctedValue).replace(/[$,]/g, ''));
-        const value: string | number = Number.isFinite(numeric) && String(correctedValue).trim() !== ''
-          ? numeric
-          : String(correctedValue);
+      if (
+        action === 'approve_corrected' &&
+        currentException.sourceRecordId &&
+        currentException.field &&
+        parsedCorrection !== null
+      ) {
         corrections = [
           ...corrections,
           {
-            sourceRecordId: exception.sourceRecordId,
-            field: exception.field,
-            value,
-            exceptionId: exception.id,
+            sourceRecordId: currentException.sourceRecordId,
+            field: currentException.field,
+            value: parsedCorrection,
+            exceptionId: currentException.id,
           },
         ];
         audit.push(
           auditEvent(
             { audit },
-            s.reviewer,
+            actor,
             'CORRECTION',
-            `Corrected ${exception.field} on ${exception.sourceRecordId} to ${String(value)}. Original values remain in the source record history.`,
-            exception.id,
+            `Corrected ${currentException.field} on ${currentException.sourceRecordId} to ${String(parsedCorrection)}. Original values remain in the source record history.`,
+            currentException.id,
           ),
         );
       }
 
-      if (action === 'quarantine' && exception.sourceRecordId) {
-        if (!quarantinedRecordIds.includes(exception.sourceRecordId)) {
-          quarantinedRecordIds = [...quarantinedRecordIds, exception.sourceRecordId];
+      if (action === 'quarantine' && currentException.sourceRecordId) {
+        if (!quarantinedRecordIds.includes(currentException.sourceRecordId)) {
+          quarantinedRecordIds = [...quarantinedRecordIds, currentException.sourceRecordId];
         }
         audit.push(
           auditEvent(
             { audit },
-            s.reviewer,
+            actor,
             'QUARANTINE',
-            `Source record ${exception.sourceRecordId} quarantined; it is excluded from normalization until released.`,
-            exception.id,
+            `Source record ${currentException.sourceRecordId} quarantined; it is excluded from normalization until released.`,
+            currentException.id,
           ),
         );
+      }
+
+      if (action === 'reopen' && currentItem.cleared && currentException.sourceRecordId) {
+        const recordId = currentException.sourceRecordId;
+        const removedCorrections = corrections.filter((correction) => correction.sourceRecordId === recordId).length;
+        const releasedQuarantine = quarantinedRecordIds.includes(recordId);
+        corrections = corrections.filter((correction) => correction.sourceRecordId !== recordId);
+        quarantinedRecordIds = quarantinedRecordIds.filter((id) => id !== recordId);
+        if (removedCorrections > 0 || releasedQuarantine) {
+          audit.push(
+            auditEvent(
+              { audit },
+              actor,
+              'RELEASE',
+              `Reopened source record ${recordId}: removed ${removedCorrections} active correction(s)` +
+                `${releasedQuarantine ? ' and released its quarantine' : ''}. The original data will be validated again.`,
+              currentException.id,
+            ),
+          );
+        }
       }
 
       set({ decisions, corrections, quarantinedRecordIds, audit });
@@ -298,7 +369,7 @@ export function createAppStore(persistence: PersistenceAdapter) {
           ...s.audit,
           auditEvent(
             s,
-            s.reviewer,
+            actorName(s.reviewer),
             'IMPORT',
             `Imported ${fileName} (${result.version.records.length} rows) as ${result.version.id}. Processed locally only.`,
           ),
@@ -322,7 +393,7 @@ export function createAppStore(persistence: PersistenceAdapter) {
         selectedExceptionId: null,
         importError: null,
         audit: [
-          auditEvent({ audit: [] }, get().reviewer, 'DATASET', 'Session reset: decisions, corrections, and quarantines cleared.'),
+          auditEvent({ audit: [] }, actorName(get().reviewer), 'DATASET', 'Session reset: decisions, corrections, and quarantines cleared.'),
         ],
       });
       persist();

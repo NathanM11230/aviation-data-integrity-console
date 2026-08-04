@@ -106,7 +106,7 @@ export function PortfolioView({ run }: { run: PipelineRun }) {
             <tbody>
               {COUNTERPARTIES.map((c) => {
                 const open = openItems.filter(
-                  (i) => i.exception.counterpartyId === c.id || i.exception.counterpartyId === null,
+                  (i) => i.exception.counterpartyId === c.id || i.exception.scope === 'feed',
                 );
                 return (
                   <tr key={c.id}>
