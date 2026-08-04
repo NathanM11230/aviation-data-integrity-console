@@ -15,6 +15,7 @@ export function QueueView({ run, selectedId }: { run: PipelineRun; selectedId: s
   const importCsv = useAppStore((s) => s.importCsv);
   const importError = useAppStore((s) => s.importError);
   const clearImportError = useAppStore((s) => s.clearImportError);
+  const logExport = useAppStore((s) => s.logExport);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const [band, setBand] = useState('all');
@@ -76,6 +77,7 @@ export function QueueView({ run, selectedId }: { run: PipelineRun; selectedId: s
       ]),
     );
     downloadText('exceptions.csv', csv);
+    logExport('exception', run.items.length);
   };
 
   const onFile = async (file: File | undefined) => {

@@ -21,11 +21,11 @@ Those two goals pull in opposite directions. Enterprise scaffolding (a service l
 
 ## Rationale
 
-**Purity over layering.** The valuable claim in this product is that priority is deterministic and explainable. A pure engine makes that claim testable: 87 unit tests exercise every rule, boundary, and demonstration case in ~0.5s with no DOM and no mocks. Adding a service/repository layer between the UI and the engine would add indirection without adding a seam anyone would use.
+**Purity over layering.** The valuable claim in this product is that priority is deterministic and explainable. A pure engine makes that claim testable: 88 unit tests exercise every rule, boundary, and demonstration case in ~0.5s with no DOM and no mocks. Adding a service/repository layer between the UI and the engine would add indirection without adding a seam anyone would use.
 
 **Derived state prevents a class of bug that matters here.** If exception status were stored alongside decisions, a correction could leave a stale "open" flag on a finding the data no longer trips — precisely the silent inconsistency an audit-oriented tool must not have. Recomputing everything makes divergence structurally impossible. The cost is recomputation on each render; the pipeline runs on 5 records and 16 rules, so it is immaterial. A `selectRun` cache keyed on input identity keeps re-renders cheap.
 
-**Zustand over Redux.** The store holds five arrays and six actions. Redux Toolkit would triple the ceremony for the same behaviour.
+**Zustand over Redux.** The store holds four arrays and eight actions. Redux Toolkit would triple the ceremony for the same behaviour.
 
 **The persistence interface is the one piece of "unnecessary" abstraction, and it earns its place.** It is what makes "replace local persistence with an API later" a real claim rather than an aspiration — the store never touches `localStorage` directly, and the test suite already proves the seam works by running the entire persistence-and-reload test against a second implementation.
 
@@ -46,6 +46,6 @@ Those two goals pull in opposite directions. Enterprise scaffolding (a service l
 | --- | --- |
 | Keep the single-file HTML prototype | No module boundaries, no type safety, and no way to unit-test the priority formula — the central claim would be unverifiable |
 | Next.js | SSR and routing infrastructure with no server to run it on; slower builds for zero benefit on Pages |
-| Redux Toolkit | Ceremony disproportionate to five arrays of state |
+| Redux Toolkit | Ceremony disproportionate to four arrays of state |
 | IndexedDB via Dexie | A dependency and async complexity for a payload measured in kilobytes; `localStorage` is synchronous, which keeps the store simple |
 | A rules DSL / JSON-configured validators | Indirection that would obscure the rules rather than clarify them, at 16 rules with no runtime authoring requirement |

@@ -10,6 +10,7 @@ export function ReviewsView({ run }: { run: PipelineRun }) {
   const decisions = useAppStore((s) => s.decisions);
   const audit = useAppStore((s) => s.audit);
   const resetSession = useAppStore((s) => s.resetSession);
+  const logExport = useAppStore((s) => s.logExport);
 
   const pending = run.items.filter(isActionable);
 
@@ -21,6 +22,7 @@ export function ReviewsView({ run }: { run: PipelineRun }) {
         audit.map((a) => [a.seq, a.at, a.actor, a.type, a.exceptionId ?? '', a.message]),
       ),
     );
+    logExport('audit', audit.length);
   };
 
   const exportDecisions = () => {
@@ -31,6 +33,7 @@ export function ReviewsView({ run }: { run: PipelineRun }) {
         decisions.map((d) => [d.at, d.reviewer, d.action, d.exceptionId, d.reason, d.correctedValue ?? '', d.assignee ?? '']),
       ),
     );
+    logExport('decision', decisions.length);
   };
 
   return (

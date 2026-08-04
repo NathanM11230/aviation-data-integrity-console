@@ -56,7 +56,7 @@ src/
   ui/                    Presentation only; no validation logic
 ```
 
-The engine is pure and synchronous: `runPipeline(feed, published, corrections, decisions, quarantines)` returns the entire application state. The UI never computes a verdict; it renders one. That is why 87 unit tests can cover the product logic without rendering a component.
+The engine is pure and synchronous: `runPipeline(feed, published, corrections, decisions, quarantines)` returns the entire application state. The UI never computes a verdict; it renders one. That is why 88 unit tests can cover the product logic without rendering a component.
 
 **Data flow:** `Ingest → Normalize → Validate → Determine dependencies → Score → Human decision → Publish or quarantine → Audit`
 
@@ -182,7 +182,7 @@ npm run typecheck    # tsc -b, strict mode
 ## Testing
 
 ```bash
-npm test             # 87 unit tests (Vitest)
+npm test             # 88 unit tests (Vitest)
 npm run test:e2e     # 9 end-to-end tests (Playwright); builds and serves automatically
 ```
 

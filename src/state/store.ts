@@ -61,6 +61,7 @@ export interface AppState {
   setReviewer: (name: string) => void;
   decide: (input: DecideInput) => { ok: true } | { ok: false; error: string };
   importCsv: (text: string, fileName: string) => boolean;
+  logExport: (what: string, rows: number) => void;
   clearImportError: () => void;
   resetSession: () => void;
 }
@@ -143,6 +144,26 @@ export function createAppStore(persistence: PersistenceAdapter) {
 
   const persist = () => persistence.save(persistedFrom(get()));
 
+  /** Record what the engine produced for the newly active data, for the audit trail. */
+  const appendValidationEvent = (label: string) => {
+    const run = selectRun(get());
+    const critical = run.items.filter((i) => i.score.band === 'Critical').length;
+    const blocked = run.publication.filter((p) => !p.eligible).length;
+    const s = get();
+    set({
+      audit: [
+        ...s.audit,
+        auditEvent(
+          s,
+          'system',
+          'VALIDATE',
+          `Validated "${label}": ${run.items.length} exception(s) raised (${critical} critical); ` +
+            `${blocked} of ${run.publication.length} reports blocked from publication.`,
+        ),
+      ],
+    });
+  };
+
   return {
     ...initial,
 
@@ -154,6 +175,18 @@ export function createAppStore(persistence: PersistenceAdapter) {
         datasetId: id,
         selectedExceptionId: null,
         audit: [...s.audit, auditEvent(s, s.reviewer, 'DATASET', `Switched active dataset to "${label}".`)],
+      });
+      appendValidationEvent(label);
+      persist();
+    },
+
+    logExport: (what, rows) => {
+      const s = get();
+      set({
+        audit: [
+          ...s.audit,
+          auditEvent(s, s.reviewer, 'EXPORT', `Exported ${rows} ${what} row(s) to CSV.`),
+        ],
       });
       persist();
     },
@@ -271,6 +304,7 @@ export function createAppStore(persistence: PersistenceAdapter) {
           ),
         ],
       });
+      appendValidationEvent(result.version.label);
       persist();
       return true;
     },

@@ -67,6 +67,19 @@ describe('append-only audit behavior', () => {
     expect(new Set(seqs).size).toBe(seqs.length);
   });
 
+  it('records what validation produced and when data was exported', () => {
+    const { store } = makeStore();
+    store.getState().selectDataset('issues');
+    const validate = store.getState().audit.find((a) => a.type === 'VALIDATE');
+    expect(validate?.message).toMatch(/11 exception\(s\) raised \(5 critical\)/);
+    expect(validate?.message).toMatch(/4 of 4 reports blocked/);
+
+    store.getState().logExport('audit', 7);
+    const exported = store.getState().audit.at(-1);
+    expect(exported?.type).toBe('EXPORT');
+    expect(exported?.message).toContain('7 audit row(s)');
+  });
+
   it('logs corrections and quarantines as separate audit events', () => {
     const { store } = makeStore();
     store.getState().selectDataset('issues');
