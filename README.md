@@ -1,231 +1,158 @@
 # Aviation Data Review
 
-An independent recruiting prototype by **Nathan Mackey**, Finance and Computer Science, Case Western Reserve University.
+I built this project to explore a simple question: when a financial data feed has several problems, how does an analyst know which one needs attention first?
 
-> This is not an Aerlytix product, a credit rating, an investment recommendation, or a production aviation-finance model. It uses public SEC filing data and a clearly labeled **synthetic** portfolio of aircraft, leases, loans, and funds.
+A comma in a number and a $500 million balance-sheet mismatch can both make a validation check fail. They should not receive the same response. This application puts the issues that could affect real decisions at the top of the queue, shows what each issue could disrupt, and records what the reviewer decided.
 
----
+**[Open the live demo](https://nathanm11230.github.io/aviation-data-integrity-console/)**
 
-## The problem
+> **Project note:** This is an independent recruiting project by Nathan Mackey, a Finance and Computer Science student at Case Western Reserve University. It is not an Aerlytix product, a credit rating, an investment recommendation, or a production aviation-finance model. Public SEC figures are combined with clearly labeled synthetic aircraft, lease, loan, fund, and exposure data.
 
-Aviation-finance teams do not lack dashboards that report a validation percentage. They lack a way to answer the question that actually blocks work:
+## What the app does
 
-> A counterparty data feed changed. Which problems deserve attention first, what do they put at risk downstream, which outputs must be held, and can a reviewer document a defensible decision?
+The app follows a practical review workflow across three screens:
 
-A validation suite that reports "94% of checks passed" is useless when the 6% includes a $500 million balance-sheet mismatch on a lessee backing $348.5M of modeled exposure — and equally useless when the 6% is a comma in a number that parsed cleanly. Both are "failures". Only one should stop a report.
+- **Review Queue** tells the analyst what needs attention first and why.
+- **Data & Reports** shows incoming data changes, validation results, and which reports are ready or on hold.
+- **Decision History** keeps the reviewer, explanation, action, and time together in one exportable record.
 
-This application ranks exceptions by **potential decision impact**, explains the ranking, traces every affected downstream consumer, blocks only the outputs that are actually compromised, and preserves an append-only record of who decided what and why.
+The goal is not to produce another overall data-quality percentage. It is to help someone answer four useful questions:
 
-The interface follows the reviewer workflow through three primary screens: **Review Queue**, **Data & Reports**, and **Decision History**. Technical source, score, and dependency details remain available on demand without crowding the decision itself.
+1. What is wrong?
+2. How important is it?
+3. What work depends on it?
+4. What did we do about it?
 
-## Intended users
+## Try the main workflow
 
-| User | What they do here |
+1. Open the live demo and change the scenario from **Clean baseline** to **Sample with issues**.
+2. Open the accounting-equation mismatch at the top of the queue.
+3. Review the original SEC values, the linked synthetic exposure, and the reports placed on hold.
+4. Choose a review action and add an explanation. The app will not accept an undocumented decision.
+5. Open **Decision History** to see the action in the audit trail.
+
+The highest-priority sample issue scores **71 / Urgent** because it is a large balance-sheet inconsistency tied to $348.5M of modeled exposure and several downstream outputs. A harmless formatting issue scores **25 / Low**. Both are visible, but the queue makes the difference in urgency clear.
+
+## Why I chose aviation finance
+
+Aviation finance is a good setting for this problem because a single counterparty value can flow into aircraft leases, loans, portfolio views, and investor reporting. A bad source value does not only affect one spreadsheet cell; it can change several decisions downstream.
+
+The project models that dependency chain so the app can hold only the affected outputs. For example, a missing operating cash-flow value holds the lease cash-flow model and the reports built from it, rather than stopping every report in the system.
+
+## What is real and what is synthetic
+
+The distinction matters, so the app makes it visible throughout the interface.
+
+**Public financial data**
+
+- [United Airlines Holdings 2025 Form 10-K](https://www.sec.gov/Archives/edgar/data/100517/000010051726000023/0000100517-26-000023-index.htm)
+- [Delta Air Lines 2025 Form 10-K](https://www.sec.gov/Archives/edgar/data/27904/000002790426000013/0000027904-26-000013-index.htm)
+- [American Airlines Group 2025 Form 10-K](https://www.sec.gov/Archives/edgar/data/6201/000000620126000014/0000006201-26-000014-index.htm)
+
+The FY2025 company figures come from those SEC filings. The application derives liabilities as `assets - stockholders' equity` when demonstrating the accounting-equation check.
+
+**Synthetic demonstration data**
+
+- Aircraft, leases, loans, funds, and portfolio relationships
+- Exposure amounts and downstream reporting dependencies
+- FY2024 comparison values
+- Feed errors, schema changes, and review scenarios
+
+None of the synthetic relationships represent a real Aerlytix portfolio or a claim about the three airlines.
+
+## How review priority works
+
+The **Review Priority Score** is a deterministic workflow score from 0 to 100. It is not a credit score, probability of default, or AI prediction. Every point is visible in the interface.
+
+| Factor | What it asks |
 | --- | --- |
-| Data implementation analyst | Triage a new feed version, see what schema drift broke, decide whether a load may proceed |
-| Portfolio / risk analyst | See which counterparties, leases, loans, and models are affected and how much modeled exposure is in doubt |
-| Reporting owner | See which reports are held and exactly which exception is holding them |
-| Auditor | Read an append-only trail of decisions, reasons, reviewers, and timestamps, and export it |
+| Severity | How serious is this type of validation failure? |
+| Data criticality | Is the affected field important to a decision? |
+| Materiality | How large is the discrepancy relative to the source value? |
+| Linked exposure | How much synthetic exposure depends on the record? |
+| Downstream impact | How many models or reports use the value? |
+| Recency | Is this part of the latest feed? |
+| Confidence | How certain is the control that this is a real issue? |
+| Regulatory relevance | Could the field affect formal reporting? |
 
-## Why it is useful
+The stored score bands are `Critical`, `High`, `Medium`, and `Low`. The interface labels the top band **Urgent** to make the required action clearer to a reviewer.
 
-1. **Prioritisation is explained, not asserted.** Every exception carries a 0–100 Review Priority Score with all eight factor contributions shown on screen. No opaque "AI risk score".
-2. **Impact is concrete.** An exception names the aircraft, leases, loans, portfolios, models, and reports downstream of the affected value, and the modeled exposure attached to them.
-3. **Blocking is surgical.** A missing `operatingCashFlow` blocks the Lease Cash Flow Model and the reports built on it — not the whole publication run.
-4. **Evidence survives decisions.** Corrections and quarantines never overwrite the incoming feed. A finding cleared by a review action stays visible, marked *no longer detected*, with its original evidence intact.
-5. **A decision cannot fake a pass.** Rejected values keep blocking, failed corrections remain open, and record-only actions are unavailable on feed-level findings. Reopening a corrected or quarantined record restores the original data and runs every control again.
+## Review behavior
 
----
+- Corrections and quarantines do not overwrite the incoming source record.
+- Original evidence remains visible after an issue is cleared.
+- Rejected values continue to block affected outputs.
+- Reopening a decision restores the original data and runs the controls again.
+- Each decision requires an explanation and is added to the local audit history.
+- CSV exports protect against spreadsheet-formula injection.
 
-## Architecture
+## Run it locally
 
-A single-page React application with a strict separation between the deterministic engine and the presentation layer. No backend, no API keys, no authentication — it deploys as a static GitHub Pages site.
-
-```
-src/
-  domain/types.ts        Domain model + persistence interface (no logic)
-  data/                  SEC figures, synthetic portfolio, sample feed versions
-  engine/
-    normalize.ts         Mapping, coercion, duplicate/stale exclusion
-    rules.ts             16 validation controls → structured exceptions
-    drift.ts             Schema + distribution drift between two versions
-    dependencies.ts      Impact traversal, exposure, blocked-output recalculation
-    scoring.ts           Review Priority Score (documented formula)
-    csv.ts               Strict CSV parsing and rejection
-    pipeline.ts          Orchestration: ingest → … → publish/quarantine
-  state/
-    persistence.ts       PersistenceAdapter (localStorage / in-memory)
-    store.ts             Zustand store: decisions, corrections, audit
-  ui/                    Presentation only; no validation logic
-```
-
-The engine is pure and synchronous: `runPipeline(feed, published, corrections, decisions, quarantines)` returns the entire application state. The UI never computes a verdict; it renders one. That is why 108 unit tests can cover the product logic without rendering a component.
-
-**Data flow:** `Ingest → Normalize → Validate → Determine dependencies → Score → Human decision → Publish or quarantine → Audit`
-
-Decisions and corrections are stored, not derived state. Exceptions, scores, impact, and blocked outputs are recomputed deterministically on every change, so the same inputs always produce the same queue.
-
-### Why this architecture (ADR)
-
-See [`docs/adr-001-architecture.md`](docs/adr-001-architecture.md).
-
-## Data model
-
-Real (public SEC EDGAR company facts, FY2025 10-K): **Counterparty** financials for UAL, DAL, AAL.
-
-Synthetic (invented for demonstration, labeled throughout the UI):
-
-| Entity | Count | Notes |
-| --- | --- | --- |
-| Aircraft | 12 | Fictional registrations `N901XA`–`N912XA`, serials `SYN-11xx` |
-| Lease | 12 | 4 per airline, split across the two funds |
-| Loan | 4 | Secured on specific aircraft |
-| Portfolio | 2 | Narrowbody Fund I, Widebody Credit Fund |
-| Analytical model | 3 | Credit Screen, Lease Cash Flow, Collateral Coverage |
-| Report | 4 | 3 required, 1 optional |
-
-Total modeled exposure is **$1.13B** (aircraft market value on lease $876.5M + loan balances $255M). Per-counterparty: UAL $355.5M, DAL $427.5M, AAL $348.5M.
-
-Also modeled explicitly: source system, source record, data version, normalized field value, validation rule, validation exception, dependency, review decision, audit event.
-
-> **Synthetic-data disclosure.** No aircraft, registration, serial number, lease, loan, portfolio, model, report, or exposure figure in this application is real. They exist to demonstrate downstream impact traversal. Only the three counterparties and their filed financial statements are real.
-
-## Validation approach
-
-Sixteen controls, each producing a structured result: rule id, plain-English explanation, expected condition, observed value, source record and version, severity, affected normalized field, and a recommended reviewer action.
-
-| Rule | Severity | Blocking |
-| --- | --- | --- |
-| `missing_required_field` | high | yes |
-| `invalid_type` | high (medium if recoverable) | yes (no if recoverable) |
-| `invalid_currency` | high | yes |
-| `unexpected_unit_multiplier` | critical | yes |
-| `accounting_equation` | critical | yes |
-| `duplicate_source_record` | medium | no |
-| `stale_data` | high | no |
-| `filing_before_period_end` | high | yes |
-| `unexpected_period` | medium | no |
-| `implausible_change` | high | no |
-| `schema_field_removed` | high | yes |
-| `schema_field_renamed` | high | no |
-| `schema_field_type_changed` | high | yes |
-| `schema_unit_changed` | critical | yes |
-| `unmapped_field` | low | no |
-| `broken_dependency` | high | yes |
-
-Notable behaviours:
-
-- A numeric arriving as `"5,942,000,000"` is **recovered** by the parser and downgraded to medium/non-blocking — the value is not in doubt, the format is. An unparseable string stays high and blocking.
-- Duplicate and stale records are **excluded from normalization** rather than silently merged, and the exclusion is reported as an exception.
-- A ×1000 magnitude shift against the published version is classified as a unit-multiplier error rather than an implausible change, because the remediation differs.
-
-## Review Priority Score
-
-Deterministic, 0–100, **a workflow priority — not a credit rating or probability of default.** Implemented in `src/engine/scoring.ts` and shown factor-by-factor whenever an exception is opened.
-
-| Factor | Max | Basis |
-| --- | --- | --- |
-| Validation severity | 25 | critical 25 · high 18 · medium 10 · low 4 |
-| Financial materiality | 20 | ≥$250M → 20 · ≥$50M → 15 · ≥$10M → 10 · ≥$1M → 5 · >0 → 2 |
-| Linked synthetic exposure | 15 | `round(counterparty exposure ÷ $1.13B × 15)` |
-| Downstream dependencies | 10 | `round(min(1, dependents ÷ 20) × 10)` |
-| Blocked required outputs | 10 | blocks a required model/report → 10 · blocks other outputs → 6 · non-blocking → 0 |
-| Propagation | 10 | feed-wide 10 · counterparty 6 · single record 2 |
-| Data freshness | 5 | stale or off-cycle period → 5 |
-| Source confidence | 5 | `round((1 − source confidence) × 5)`; SEC 0.95, CSV upload 0.70 |
-
-**Bands:** Critical ≥ 65 · High ≥ 45 · Medium ≥ 30 · Low < 30. The interface displays Critical as the plainer reviewer label **Urgent**; the stored scoring band remains unchanged.
-
-Structural schema findings (rename, removal, type change, unmapped, broken mapping) score **zero** materiality: they change no values, so a magnitude-based score would be meaningless.
-
-Worked example — the $500M mismatch scores **71 (Critical)**: severity 25 + materiality 20 + exposure 5 + dependencies 9 + blocked 10 + propagation 2 + freshness 0 + source 0. The formatted-string cash issue scores **25 (Low)**. That 46-point gap is the product's core claim.
-
-## Demonstration cases
-
-Switch the **Dataset** selector to *Mar 2026 resubmission (issues)*:
-
-| # | Case | Result |
-| --- | --- | --- |
-| 1 | UAL cash becomes a formatted string | `invalid_type`, recovered, **Low 25** |
-| 2 | DAL currency becomes EUR, no conversion record | `invalid_currency`, counterparty-wide, **Critical 69** |
-| 3 | AAL current assets missing | `missing_required_field`, **High 64** |
-| 4 | AAL liabilities overstated by exactly $500M | `accounting_equation`, **Critical 71** |
-| 5 | `operatingIncome` renamed to `operating_profit` | `schema_field_renamed` **High 53** + `broken_dependency` **High 63** |
-| 6 | Monetary field switches units → thousands | `unexpected_unit_multiplier` ×3, **Critical 69–70** |
-| 7 | Duplicate source record submitted | `duplicate_source_record`, excluded, **Low 27** |
-| 8 | Stale FY2024 period tries to overwrite FY2025 | `stale_data`, overwrite prevented, **Medium 39** |
-
-The clean baseline produces **zero exceptions** and leaves all four reports eligible.
-
-## Public data sources
-
-- **SEC EDGAR company facts (XBRL)** — FY2025 10-K figures for United Airlines (UAL), Delta Air Lines (DAL), American Airlines (AAL): revenue, operating income, net income, operating cash flow, cash, current assets, current liabilities, assets, liabilities, equity. `liabilities` is derived as `Assets − StockholdersEquity` and reconciled.
-- FY2024 comparatives used for period-over-period plausibility checks are **synthetic constructed baselines**, not filed figures, and are labeled as such in `src/data/feeds.ts`.
-
-## Privacy and security limitations
-
-- Everything runs in the browser. Imported CSVs are parsed locally and **never uploaded** — there is no server to upload to.
-- Session state (decisions, corrections, quarantines, audit log) is stored in `localStorage`, which is **not encrypted** and is readable by anything with access to the browser profile. Do not import confidential data.
-- The audit log is append-only *from the application's perspective*: nothing in the UI edits or deletes an event. It is not tamper-proof — a user with devtools can edit `localStorage` directly. Production use would need a server-side append-only store with authenticated actors.
-- There is no authentication. The "Reviewer" field is a self-declared label, not an identity.
-
-## Local development
+You will need Node.js 20 or newer.
 
 ```bash
+git clone https://github.com/NathanM11230/aviation-data-integrity-console.git
+cd aviation-data-integrity-console
 npm install
-npm run dev          # http://localhost:5173/aviation-data-integrity-console/
+npm run dev
 ```
+
+Vite will print the local address in the terminal, usually `http://localhost:5173/aviation-data-integrity-console/`.
+
+Other useful commands:
 
 ```bash
-npm run build        # typecheck + production build to dist/
-npm run preview      # serve the production build on :4173
-npm run typecheck    # tsc -b, strict mode
+npm run build       # type-check and create a production build
+npm run preview     # preview the production build
+npm run typecheck   # run TypeScript checks
+npm test            # run 108 unit tests
+npm run test:e2e    # run 14 browser tests
 ```
 
-## Testing
+The first browser-test run may also need `npx playwright install chromium`.
 
-```bash
-npm test             # 108 unit tests (Vitest)
-npm run test:e2e     # 14 end-to-end tests (Playwright); builds and serves automatically
+## How it is built
+
+The project uses React, TypeScript, Zustand, Vite, Vitest, and Playwright. It is a static single-page application with no backend, API keys, or authentication.
+
+The important design choice is that the interface does not calculate risk or decide whether a report is blocked. A synchronous domain engine takes the source data and review decisions, reruns every control, and returns the complete derived state:
+
+```text
+source data + review decisions
+              |
+              v
+    normalize -> validate -> trace dependencies -> score -> block outputs
+              |
+              v
+          interface and exports
 ```
 
-First e2e run needs the browser binary: `npx playwright install chromium`.
+That keeps the same rule from being implemented differently in the queue, reports page, and audit history. More detail is available in [the architecture decision record](docs/adr-001-architecture.md).
 
-Unit tests cover every validation rule, score calculation and band boundaries, materiality banding, dependency traversal, blocked-output recalculation, schema-drift detection, review-action requirements, correction and quarantine release behavior, spreadsheet-safe exports, persisted-state validation, CSV parsing and rejection, persistence and reload, the clean baseline, and all eight demonstration cases.
+## Tests
 
-End-to-end tests cover the full required journey — switch to the issue scenario, investigate the $500M mismatch, view business impact, quarantine the record, be refused without an explanation, confirm the audit event, confirm reports stay on hold, resolve the remaining issues, and confirm the reports become ready — plus focused mobile review, quarantine release, incoming-data change review, data-path traversal, CSV rejection, route recovery, reviewer-name editing, action eligibility, console-error checks, and horizontal-overflow checks at 1440×900 and 390×844.
+The project currently has **108 unit tests** and **14 Playwright tests**.
 
-## Deployment (GitHub Pages)
+The unit tests cover validation rules, score calculations, dependency tracing, report blocking, schema-drift detection, review actions, CSV parsing, exports, persistence, and all demonstration cases. The browser tests cover the main analyst workflow, mobile layouts, state reloads, CSV rejection, reviewer actions, console errors, and horizontal overflow at desktop and phone sizes.
 
-Pushing to `main` triggers `.github/workflows/deploy.yml`, which builds and publishes `dist/` to Pages. Enable it once under **Settings → Pages → Source → GitHub Actions**.
+## Privacy and limitations
 
-The Vite `base` is `/aviation-data-integrity-console/`, matching the repository name. Routing uses the URL hash (`#/queue/...`), so reloading a deep route works on Pages without a rewrite rule or 404 fallback.
+- Imported CSV data and review history stay in the browser using `localStorage`.
+- `localStorage` can be edited through browser developer tools, so the audit trail is not tamper-proof.
+- There is no sign-in, access control, assignment queue, or multi-user conflict handling.
+- The sample contains three counterparties and one reporting period, so its plausibility thresholds are demonstrations rather than calibrated production limits.
+- Exposure is a synthetic sum of connected records, not an estimate of economic loss.
+- Rename detection uses field-name similarity and data types, so an unrelated abbreviation may still need manual mapping.
+- Do not import confidential or personal information into the public demo.
 
-## Five-minute demonstration script
+## What I would build next
 
-1. **Start clean (30s).** The default Review Queue has no issues and all four reports are ready.
-2. **Load issues (30s).** Switch Scenario → *Sample with issues*. Eleven issues appear in business-risk order and all four reports move on hold.
-3. **Review the highest risk (60s).** Open the $500M accounting-equation mismatch at **71 Urgent**. The panel immediately explains what happened, the $348.5M linked exposure, and the affected reports.
-4. **Inspect evidence (45s).** Expand Source evidence and the risk-score calculation only when needed. Use Technical data path to trace the affected calculations and reports.
-5. **Check outputs and sources (45s).** Data & Reports → Report readiness shows exactly what is held. Data sources compares incoming versions and explains the `operatingIncome` → `operating_profit` rename.
-6. **Decide (60s).** Try to save a decision without an explanation — it is refused. Add the evidence-based explanation and save it.
-7. **Prove it (45s).** Decision History shows the reviewer decision and system events. Download the records or reload the page to confirm persistence.
+1. A server-side audit trail with authenticated reviewers and tamper-evident events.
+2. Real ingestion from SEC EDGAR and scheduled provider files.
+3. Thresholds calibrated from historical data by field and counterparty.
+4. An in-app mapping tool for reviewing and approving schema changes.
+5. Assignment, service-level tracking, and separation between the analyst who proposes a correction and the reviewer who approves it.
 
-## Current limitations
+## Deployment
 
-- Three counterparties and one reporting period. Period-over-period checks compare against a single published baseline rather than a real time series.
-- The FY2024 comparatives are synthetic, so plausibility thresholds are demonstrative rather than calibrated.
-- Rename detection uses token overlap plus a type match. It explains its confidence but will not catch a rename that shares no tokens (`operatingIncome` → `opInc`).
-- Corrections apply to feeds whose incoming and normalized field names match. A renamed field is resolved by mapping review, not by correcting a value.
-- Reopening a cleared record releases its quarantine or active corrections and validates the original source values again; every release is added to the audit log.
-- Exposure is a static synthetic sum, not a valuation model. It measures *what is attached to the affected data*, not economic loss.
-- Single-user. There is no assignment queue, notification, or concurrent-reviewer conflict handling.
-
-## Credible next steps for production
-
-1. **Server-side append-only audit** with authenticated actors and hash-chained events, so the trail is defensible rather than merely append-only by convention.
-2. **Replace `LocalStoragePersistence`** with an API-backed adapter — the `PersistenceAdapter` interface already isolates every call site.
-3. **Real feed connectors** (SEC EDGAR submissions API, provider SFTP drops) with scheduled ingestion and version pinning, replacing the sample-feed selector.
-4. **Calibrated thresholds** — derive the 40% plausibility band and materiality bands from historical distributions per field and counterparty instead of fixed constants.
-5. **Mapping management UI** so a rename can be resolved by editing the mapping in-app, with the mapping change itself versioned and audited.
-6. **Reviewer identity and workload routing** — real assignment, SLAs on Critical items, and segregation of duties between the analyst who corrects and the reviewer who approves.
+Pushing to `main` runs the GitHub Actions workflow in `.github/workflows/deploy.yml` and publishes the production build to GitHub Pages. The app uses hash-based routes so direct links continue to work on a static host.
