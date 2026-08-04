@@ -17,7 +17,7 @@ function dispositionClass(d: DriftDisposition): string {
   return d === 'proceed' ? 'ok' : d === 'review' ? 'high' : 'blocked';
 }
 
-export function FeedsView({ run }: { run: PipelineRun }) {
+export function FeedsView({ run, embedded = false }: { run: PipelineRun; embedded?: boolean }) {
   const importedFeed = useAppStore((s) => s.importedFeed);
   const quarantined = useAppStore((s) => s.quarantinedRecordIds);
   const feeds = useMemo(
@@ -43,34 +43,31 @@ export function FeedsView({ run }: { run: PipelineRun }) {
   const mappedCount = run.norm.mapping.length;
 
   return (
-    <section aria-label="Data Feeds">
-      <div className="page-head">
+    <section aria-label="Data sources">
+      {!embedded && <div className="page-head">
         <div>
-          <h1>Data Feeds</h1>
+          <h1>Data Sources</h1>
           <p className="subtitle">
-            Connector status and schema-drift review. Compare any two feed versions to see what changed and whether
-            ingestion can proceed.
+            Review loaded files, source freshness, and changes in incoming data structure.
           </p>
         </div>
-      </div>
+      </div>}
 
       <div className="panel">
         <div className="panel-head">
-          <h2>Connectors</h2>
-          <span className="hint">All processing is local; no data leaves the browser</span>
+          <h2>Loaded data sources</h2>
+          <span className="hint">Processed locally in this demonstration</span>
         </div>
         <div className="table-wrap">
           <table>
             <thead>
               <tr>
-                <th>Source system</th>
-                <th>Kind</th>
-                <th className="num">Confidence</th>
-                <th>Latest version</th>
-                <th>Freshness</th>
+                <th>Source</th>
+                <th>Latest data</th>
+                <th>Received</th>
                 <th className="num">Records</th>
-                <th>Mapping coverage</th>
-                <th className="num">Quarantined</th>
+                <th>Fields recognized</th>
+                <th className="num">Records held</th>
               </tr>
             </thead>
             <tbody>
@@ -84,8 +81,6 @@ export function FeedsView({ run }: { run: PipelineRun }) {
                       <strong>{s.name}</strong>
                       <span className="cell-sub mono">{s.id}</span>
                     </td>
-                    <td>{s.kind}</td>
-                    <td className="num">{Math.round(s.confidence * 100)}%</td>
                     <td>
                       {latest ? (
                         <>
@@ -122,10 +117,10 @@ export function FeedsView({ run }: { run: PipelineRun }) {
 
       <div className="panel">
         <div className="panel-head">
-          <h2>Schema drift comparison</h2>
+          <h2>Incoming data changes</h2>
           <div className="filterbar" style={{ margin: 0 }}>
             <div className="filter">
-              <label htmlFor="drift-before">Previous version</label>
+              <label htmlFor="drift-before">Compare from</label>
               <select id="drift-before" value={before?.id ?? ''} onChange={(e) => setBeforeId(e.target.value)}>
                 {feeds.map((f) => (
                   <option key={f.id} value={f.id}>
@@ -135,7 +130,7 @@ export function FeedsView({ run }: { run: PipelineRun }) {
               </select>
             </div>
             <div className="filter">
-              <label htmlFor="drift-after">Incoming version</label>
+              <label htmlFor="drift-after">Compare to</label>
               <select id="drift-after" value={after?.id ?? ''} onChange={(e) => setAfterId(e.target.value)}>
                 {feeds.map((f) => (
                   <option key={f.id} value={f.id}>
@@ -166,9 +161,9 @@ export function FeedsView({ run }: { run: PipelineRun }) {
                     <th>Previous definition</th>
                     <th>New definition</th>
                     <th>Explanation</th>
-                    <th>Affected mappings</th>
-                    <th>Affected models / reports</th>
-                    <th>Disposition</th>
+                    <th>Affected fields</th>
+                    <th>Affected calculations / reports</th>
+                    <th>Next step</th>
                   </tr>
                 </thead>
                 <tbody>

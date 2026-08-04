@@ -4,12 +4,12 @@ import { isActionable } from '../../engine/pipeline';
 import { useAppStore } from '../../state/store';
 import { COUNTERPARTIES, MODELS } from '../../data/portfolio';
 import { BandPill, ScoreChip, StatusPill, STATUS_LABELS } from '../common';
-import { ageFrom, downloadText, fmtMoney, toCsv } from '../format';
+import { downloadText, fmtMoney, toCsv } from '../format';
 import { navigate } from '../App';
 import { InvestigationPanel } from './InvestigationPanel';
 import { ruleDef } from '../../engine/rules';
 
-type SortKey = 'score' | 'exposure' | 'age';
+type SortKey = 'score' | 'exposure';
 
 export function QueueView({ run, selectedId }: { run: PipelineRun; selectedId: string | null }) {
   const importCsv = useAppStore((s) => s.importCsv);
@@ -19,7 +19,7 @@ export function QueueView({ run, selectedId }: { run: PipelineRun; selectedId: s
   const fileRef = useRef<HTMLInputElement>(null);
 
   const [band, setBand] = useState('all');
-  const [status, setStatus] = useState('all');
+  const [status, setStatus] = useState('actionable');
   const [cp, setCp] = useState('all');
   const [model, setModel] = useState('all');
   const [sortKey, setSortKey] = useState<SortKey>('score');
@@ -34,7 +34,8 @@ export function QueueView({ run, selectedId }: { run: PipelineRun; selectedId: s
   const filtered = useMemo(() => {
     let items = run.items;
     if (band !== 'all') items = items.filter((i) => i.score.band === band);
-    if (status !== 'all') items = items.filter((i) => i.status === status);
+    if (status === 'actionable') items = items.filter(isActionable);
+    else if (status !== 'all') items = items.filter((i) => i.status === status);
     if (cp !== 'all') {
       items = items.filter((i) => {
         if (cp === 'feed') return i.exception.scope === 'feed';
@@ -46,7 +47,6 @@ export function QueueView({ run, selectedId }: { run: PipelineRun; selectedId: s
     const dir = sortDesc ? -1 : 1;
     return [...items].sort((a, b) => {
       if (sortKey === 'exposure') return dir * (a.impact.exposureUsd - b.impact.exposureUsd);
-      if (sortKey === 'age') return 0; // exceptions share the feed's received time
       return dir * (a.score.total - b.score.total);
     });
   }, [run.items, band, status, cp, model, sortKey, sortDesc]);
@@ -92,17 +92,17 @@ export function QueueView({ run, selectedId }: { run: PipelineRun; selectedId: s
   };
 
   return (
-    <section aria-label="Decision Risk Queue">
+    <section className={`queue-page ${selected ? 'reviewing' : ''}`} aria-label="Review Queue">
       <div className="page-head">
         <div>
-          <h1>Decision Risk Queue</h1>
+          <h1>Issues requiring review</h1>
           <p className="subtitle">
-            Exceptions from {run.version.label}, ranked by potential decision impact — not just technical severity.
+            Start with the highest-risk data problems before they affect calculations or reports.
           </p>
         </div>
         <div className="actions">
           <label className="btn file-btn">
-            Import CSV
+            Upload data
             <input
               ref={fileRef}
               type="file"
@@ -112,7 +112,7 @@ export function QueueView({ run, selectedId }: { run: PipelineRun; selectedId: s
             />
           </label>
           <button className="btn" onClick={exportExceptions} disabled={run.items.length === 0}>
-            Export exceptions
+            Download queue
           </button>
         </div>
       </div>
@@ -133,11 +133,11 @@ export function QueueView({ run, selectedId }: { run: PipelineRun; selectedId: s
 
       <div className="summary-strip" role="group" aria-label="Queue summary">
         <div className="summary-cell">
-          <div className="k">Open</div>
+          <div className="k">Needs review</div>
           <div className={`v ${openItems.length ? 'warn' : 'good'}`}>{openItems.length}</div>
         </div>
         <div className="summary-cell">
-          <div className="k">Critical</div>
+          <div className="k">Urgent</div>
           <div className={`v ${bandCount('Critical') ? 'critical' : ''}`}>{bandCount('Critical')}</div>
         </div>
         <div className="summary-cell">
@@ -145,28 +145,28 @@ export function QueueView({ run, selectedId }: { run: PipelineRun; selectedId: s
           <div className={`v ${bandCount('High') ? 'warn' : ''}`}>{bandCount('High')}</div>
         </div>
         <div className="summary-cell">
-          <div className="k">Medium / Low</div>
+          <div className="k">Other</div>
           <div className="v">{bandCount('Medium') + bandCount('Low')}</div>
         </div>
         <div className="summary-cell">
-          <div className="k">Blocked reports</div>
+          <div className="k">Reports on hold</div>
           <div className={`v ${blockedReports.length ? 'critical' : 'good'}`}>
             {blockedReports.length}/{run.publication.length}
           </div>
         </div>
         <div className="summary-cell">
-          <div className="k">Records</div>
-          <div className="v">{run.norm.records.length}</div>
+          <div className="k">Records checked</div>
+          <div className="v">{run.originalVersion.records.length}</div>
         </div>
       </div>
 
       <div className="filterbar">
         <div className="filter">
-          <label htmlFor="f-band">Severity band</label>
+          <label htmlFor="f-band">Urgency</label>
           <select id="f-band" value={band} onChange={(e) => setBand(e.target.value)}>
-            <option value="all">All bands</option>
+            <option value="all">All urgency levels</option>
             {['Critical', 'High', 'Medium', 'Low'].map((b) => (
-              <option key={b}>{b}</option>
+              <option key={b} value={b}>{b === 'Critical' ? 'Urgent' : b}</option>
             ))}
           </select>
         </div>
@@ -174,6 +174,7 @@ export function QueueView({ run, selectedId }: { run: PipelineRun; selectedId: s
           <label htmlFor="f-status">Status</label>
           <select id="f-status" value={status} onChange={(e) => setStatus(e.target.value)}>
             <option value="all">All statuses</option>
+            <option value="actionable">Needs review</option>
             {Object.entries(STATUS_LABELS).map(([k, v]) => (
               <option key={k} value={k}>
                 {v}
@@ -182,7 +183,7 @@ export function QueueView({ run, selectedId }: { run: PipelineRun; selectedId: s
           </select>
         </div>
         <div className="filter">
-          <label htmlFor="f-cp">Counterparty</label>
+          <label htmlFor="f-cp">Airline or scope</label>
           <select id="f-cp" value={cp} onChange={(e) => setCp(e.target.value)}>
             <option value="all">All</option>
             {COUNTERPARTIES.map((c) => (
@@ -195,9 +196,9 @@ export function QueueView({ run, selectedId }: { run: PipelineRun; selectedId: s
           </select>
         </div>
         <div className="filter">
-          <label htmlFor="f-model">Affected model</label>
+          <label htmlFor="f-model">Affected calculation</label>
           <select id="f-model" value={model} onChange={(e) => setModel(e.target.value)}>
-            <option value="all">All models</option>
+            <option value="all">All calculations</option>
             {MODELS.map((m) => (
               <option key={m.id} value={m.id}>
                 {m.name}
@@ -210,9 +211,9 @@ export function QueueView({ run, selectedId }: { run: PipelineRun; selectedId: s
       <div className={`queue-layout ${selected ? 'with-panel' : ''}`}>
         <div className="panel">
           <div className="panel-head">
-            <h2>Exceptions</h2>
+            <h2>Review queue</h2>
             <span className="hint">
-              {filtered.length} of {run.items.length} shown · select a row to investigate
+              {filtered.length} shown · select a row to review
             </span>
           </div>
           <div className="table-wrap">
@@ -221,35 +222,35 @@ export function QueueView({ run, selectedId }: { run: PipelineRun; selectedId: s
                 <tr>
                   <th className="sortable num" aria-sort={sortKey === 'score' ? (sortDesc ? 'descending' : 'ascending') : undefined}>
                     <button type="button" className="sort-button" onClick={() => onSort('score')}>
-                    Priority {sortKey === 'score' ? (sortDesc ? '▾' : '▴') : ''}
+                    Risk score {sortKey === 'score' ? (sortDesc ? '▾' : '▴') : ''}
                     </button>
                   </th>
-                  <th>Band</th>
-                  <th>Counterparty</th>
-                  <th>Problem</th>
+                  <th>Urgency</th>
+                  <th>Airline / scope</th>
+                  <th>Issue</th>
                   {!compact && (
                     <>
                       <th className="sortable num" aria-sort={sortKey === 'exposure' ? (sortDesc ? 'descending' : 'ascending') : undefined}>
                         <button type="button" className="sort-button" onClick={() => onSort('exposure')}>
-                        Exposure {sortKey === 'exposure' ? (sortDesc ? '▾' : '▴') : ''}
+                        Linked exposure {sortKey === 'exposure' ? (sortDesc ? '▾' : '▴') : ''}
                         </button>
                       </th>
-                      <th className="num">Deps</th>
-                      <th className="num">Blocks</th>
-                      <th>Age</th>
+                      <th className="num">Reports on hold</th>
                     </>
                   )}
                   <th>Status</th>
-                  {!compact && <th>Reviewer</th>}
+                  {!compact && <th>Owner</th>}
                 </tr>
               </thead>
               <tbody>
                 {filtered.length === 0 && (
                   <tr>
-                    <td colSpan={compact ? 5 : 10} className="empty">
+                    <td colSpan={compact ? 5 : 8} className="empty">
                       {run.items.length === 0
-                        ? 'No exceptions. Every blocking control passes and all reports are eligible for publication.'
-                        : 'No exceptions match the current filters.'}
+                        ? 'No issues found. All checks pass and every report is ready.'
+                        : status === 'actionable'
+                          ? 'Nothing needs review in this scenario.'
+                          : 'No issues match the current filters.'}
                     </td>
                   </tr>
                 )}
@@ -258,7 +259,6 @@ export function QueueView({ run, selectedId }: { run: PipelineRun; selectedId: s
                     key={item.exception.id}
                     item={item}
                     selected={item.exception.id === decodedSelected}
-                    receivedAt={run.version.receivedAt}
                     compact={compact}
                   />
                 ))}
@@ -290,12 +290,10 @@ function safeDecodeURIComponent(value: string): string | null {
 function QueueRow({
   item,
   selected,
-  receivedAt,
   compact,
 }: {
   item: QueueItem;
   selected: boolean;
-  receivedAt: string;
   compact: boolean;
 }) {
   const ex = item.exception;
@@ -332,11 +330,9 @@ function QueueRow({
       {!compact && (
         <>
           <td className="num">{fmtMoney(item.impact.exposureUsd)}</td>
-          <td className="num">{item.impact.dependencyCount}</td>
           <td className="num">
             {blocks ? <span className="pill blocked">{blocks}</span> : <span className="text-muted">0</span>}
           </td>
-          <td className="nowrap">{ageFrom(receivedAt)}</td>
         </>
       )}
       <td>

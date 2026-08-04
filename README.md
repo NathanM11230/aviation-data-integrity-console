@@ -1,4 +1,4 @@
-# Aviation Data Reliability Control Plane
+# Aviation Data Review
 
 An independent recruiting prototype by **Nathan Mackey**, Finance and Computer Science, Case Western Reserve University.
 
@@ -15,6 +15,8 @@ Aviation-finance teams do not lack dashboards that report a validation percentag
 A validation suite that reports "94% of checks passed" is useless when the 6% includes a $500 million balance-sheet mismatch on a lessee backing $348.5M of modeled exposure — and equally useless when the 6% is a comma in a number that parsed cleanly. Both are "failures". Only one should stop a report.
 
 This application ranks exceptions by **potential decision impact**, explains the ranking, traces every affected downstream consumer, blocks only the outputs that are actually compromised, and preserves an append-only record of who decided what and why.
+
+The interface follows the reviewer workflow through three primary screens: **Review Queue**, **Data & Reports**, and **Decision History**. Technical source, score, and dependency details remain available on demand without crowding the decision itself.
 
 ## Intended users
 
@@ -132,7 +134,7 @@ Deterministic, 0–100, **a workflow priority — not a credit rating or probabi
 | Data freshness | 5 | stale or off-cycle period → 5 |
 | Source confidence | 5 | `round((1 − source confidence) × 5)`; SEC 0.95, CSV upload 0.70 |
 
-**Bands:** Critical ≥ 65 · High ≥ 45 · Medium ≥ 30 · Low < 30.
+**Bands:** Critical ≥ 65 · High ≥ 45 · Medium ≥ 30 · Low < 30. The interface displays Critical as the plainer reviewer label **Urgent**; the stored scoring band remains unchanged.
 
 Structural schema findings (rename, removal, type change, unmapped, broken mapping) score **zero** materiality: they change no values, so a magnitude-based score would be meaningless.
 
@@ -184,14 +186,14 @@ npm run typecheck    # tsc -b, strict mode
 
 ```bash
 npm test             # 108 unit tests (Vitest)
-npm run test:e2e     # 13 end-to-end tests (Playwright); builds and serves automatically
+npm run test:e2e     # 14 end-to-end tests (Playwright); builds and serves automatically
 ```
 
 First e2e run needs the browser binary: `npx playwright install chromium`.
 
 Unit tests cover every validation rule, score calculation and band boundaries, materiality banding, dependency traversal, blocked-output recalculation, schema-drift detection, review-action requirements, correction and quarantine release behavior, spreadsheet-safe exports, persisted-state validation, CSV parsing and rejection, persistence and reload, the clean baseline, and all eight demonstration cases.
 
-End-to-end tests cover the full required journey — switch to the issue dataset, investigate the $500M mismatch, view downstream exposure, quarantine the record, be refused without a reason, confirm the audit event, confirm reports stay blocked, correct the value, re-validate, and confirm publication becomes eligible — plus quarantine release, drift review, lineage traversal, CSV rejection, route recovery, reviewer-name editing, action eligibility, console-error checks, and horizontal-overflow checks at 1440×900 and 390×844.
+End-to-end tests cover the full required journey — switch to the issue scenario, investigate the $500M mismatch, view business impact, quarantine the record, be refused without an explanation, confirm the audit event, confirm reports stay on hold, resolve the remaining issues, and confirm the reports become ready — plus focused mobile review, quarantine release, incoming-data change review, data-path traversal, CSV rejection, route recovery, reviewer-name editing, action eligibility, console-error checks, and horizontal-overflow checks at 1440×900 and 390×844.
 
 ## Deployment (GitHub Pages)
 
@@ -201,13 +203,13 @@ The Vite `base` is `/aviation-data-integrity-console/`, matching the repository 
 
 ## Five-minute demonstration script
 
-1. **Start clean (30s).** Default view, clean baseline: zero exceptions, all four reports eligible. This is what a good day looks like.
-2. **Break it (30s).** Switch Dataset → *Mar 2026 resubmission (issues)*. Eleven exceptions appear, ranked. All four reports go blocked.
-3. **The core claim (60s).** Top row is the $500M accounting-equation mismatch at **71 Critical**; bottom row is a formatting issue at **25 Low**. Open the top one and walk the eight score factors — materiality 20/20, blocked outputs 10/10 — then the formatting one, where materiality is 0 because the parser recovered the exact published value.
-4. **Impact (60s).** In the mismatch panel: $348.5M modeled exposure, 18 dependent entities, the specific reports held. Click a chip through to Lineage & Impact and trace AAL → leases → aircraft → funds → models → reports.
-5. **Drift (45s).** Data Feeds → compare Feb baseline against Mar resubmission. The `operatingIncome` → `operating_profit` rename is detected with a token-overlap explanation, the affected mapping, the models and reports it breaks, and a **Quarantine** disposition.
-6. **Decide (60s).** Back in the queue, quarantine the duplicate record with no reason — refused. Add a reason, record it. The row stays, marked *no longer detected*, evidence intact.
-7. **Prove it (45s).** Reviews & Audit: the decision and quarantine as separate sequenced events with reviewer and timestamp. Export the audit log. Reload the page — everything persists.
+1. **Start clean (30s).** The default Review Queue has no issues and all four reports are ready.
+2. **Load issues (30s).** Switch Scenario → *Sample with issues*. Eleven issues appear in business-risk order and all four reports move on hold.
+3. **Review the highest risk (60s).** Open the $500M accounting-equation mismatch at **71 Urgent**. The panel immediately explains what happened, the $348.5M linked exposure, and the affected reports.
+4. **Inspect evidence (45s).** Expand Source evidence and the risk-score calculation only when needed. Use Technical data path to trace the affected calculations and reports.
+5. **Check outputs and sources (45s).** Data & Reports → Report readiness shows exactly what is held. Data sources compares incoming versions and explains the `operatingIncome` → `operating_profit` rename.
+6. **Decide (60s).** Try to save a decision without an explanation — it is refused. Add the evidence-based explanation and save it.
+7. **Prove it (45s).** Decision History shows the reviewer decision and system events. Download the records or reload the page to confirm persistence.
 
 ## Current limitations
 

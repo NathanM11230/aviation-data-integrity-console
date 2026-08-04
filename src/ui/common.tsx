@@ -1,7 +1,7 @@
 import type { ExceptionStatus, SeverityBand } from '../domain/types';
 
 export function BandPill({ band }: { band: SeverityBand }) {
-  return <span className={`pill ${band.toLowerCase()}`}>{band}</span>;
+  return <span className={`pill ${band.toLowerCase()}`}>{band === 'Critical' ? 'Urgent' : band}</span>;
 }
 
 export function ScoreChip({ total, band }: { total: number; band: SeverityBand }) {

@@ -86,17 +86,20 @@ export function LineageView({ run, kind, id }: { run: PipelineRun; kind: string 
   });
 
   return (
-    <section aria-label="Lineage and impact">
+    <section aria-label="Data paths">
       <div className="page-head">
         <div>
-          <h1>Lineage &amp; Impact</h1>
+          <h1>Data Paths</h1>
           <p className="subtitle">
-            Start from any entity and trace upstream sources and downstream consumers. Select any node to refocus.
+            Trace where a value came from and which calculations or reports use it.
           </p>
+        </div>
+        <div className="actions">
+          <button className="btn" onClick={() => navigate('data/reports')}>Back to Data &amp; Reports</button>
         </div>
         <div className="filterbar" style={{ margin: 0 }}>
           <div className="filter">
-            <label htmlFor="lineage-kind">Entity type</label>
+            <label htmlFor="lineage-kind">Start with</label>
             <select
               id="lineage-kind"
               value={activeKind}
@@ -113,7 +116,7 @@ export function LineageView({ run, kind, id }: { run: PipelineRun; kind: string 
             </select>
           </div>
           <div className="filter">
-            <label htmlFor="lineage-entity">Entity</label>
+            <label htmlFor="lineage-entity">Item</label>
             <select
               id="lineage-entity"
               value={activeId}
@@ -172,13 +175,13 @@ export function LineageView({ run, kind, id }: { run: PipelineRun; kind: string 
       {lineage && (
         <div className="panel">
           <div className="panel-head">
-            <h2>Dependency tree</h2>
-            <span className="hint">Synthetic relationships for demonstration</span>
+            <h2>Data path</h2>
+            <span className="hint">Portfolio relationships are demonstration data</span>
           </div>
           <div className="panel-body">
             <div className="lineage-cols">
               <div>
-                <p className="lineage-col-title">Upstream (where the data comes from)</p>
+                <p className="lineage-col-title">Where this data comes from</p>
                 <Tree nodes={lineage.upstream} />
               </div>
               <div className="lineage-focus">
@@ -186,7 +189,7 @@ export function LineageView({ run, kind, id }: { run: PipelineRun; kind: string 
                 <div className="label">{lineage.focus.label}</div>
               </div>
               <div>
-                <p className="lineage-col-title">Downstream (what depends on it)</p>
+                <p className="lineage-col-title">What uses this data</p>
                 <Tree nodes={lineage.downstream} />
               </div>
             </div>
@@ -196,11 +199,11 @@ export function LineageView({ run, kind, id }: { run: PipelineRun; kind: string 
 
       <div className="panel">
         <div className="panel-head">
-          <h2>Open exceptions touching this entity</h2>
-          <span className="hint">{related.length} open</span>
+          <h2>Issues connected to this item</h2>
+          <span className="hint">{related.length} need review</span>
         </div>
         {related.length === 0 ? (
-          <div className="empty">No open exceptions affect this entity in the active dataset.</div>
+          <div className="empty">No open issues affect this item in the active scenario.</div>
         ) : (
           <div className="table-wrap">
             <table>
@@ -208,8 +211,8 @@ export function LineageView({ run, kind, id }: { run: PipelineRun; kind: string 
                 <tr>
                   <th className="num">Priority</th>
                   <th>Band</th>
-                  <th>Rule</th>
-                  <th>Observed</th>
+                  <th>Issue</th>
+                  <th>Received</th>
                   <th></th>
                 </tr>
               </thead>
@@ -227,7 +230,7 @@ export function LineageView({ run, kind, id }: { run: PipelineRun; kind: string 
                         className="btn"
                         onClick={() => navigate(`queue/${encodeURIComponent(item.exception.id)}`)}
                       >
-                        Investigate
+                        Review
                       </button>
                     </td>
                   </tr>

@@ -5,35 +5,34 @@ import { counterpartyExposureUsd } from '../../engine/dependencies';
 import { fmtMoney } from '../format';
 import { navigate } from '../App';
 
-export function PortfolioView({ run }: { run: PipelineRun }) {
+export function PortfolioView({ run, embedded = false }: { run: PipelineRun; embedded?: boolean }) {
   const openItems = run.items.filter(isActionable);
 
   return (
     <section aria-label="Portfolio overview">
-      <div className="page-head">
+      {!embedded && <div className="page-head">
         <div>
-          <h1>Portfolio</h1>
+          <h1>Data &amp; Reports</h1>
           <p className="subtitle">
-            Publication eligibility and exposure affected by unresolved issues. Aircraft, leases, loans, and portfolios
-            are synthetic demonstration data; counterparty financials are public SEC figures.
+            See which reports are ready and which data issues need to be resolved first.
           </p>
         </div>
-      </div>
+      </div>}
 
       <div className="panel">
         <div className="panel-head">
-          <h2>Publication eligibility</h2>
-          <span className="hint">Reports are held while blocking exceptions stay open</span>
+          <h2>Report readiness</h2>
+          <span className="hint">Reports stay on hold while important data issues remain open</span>
         </div>
         <div className="table-wrap">
           <table>
             <thead>
               <tr>
                 <th>Report</th>
-                <th>Cadence</th>
-                <th>Models</th>
+                <th>Schedule</th>
+                <th>Uses</th>
                 <th>Status</th>
-                <th className="num">Blocking exceptions</th>
+                <th className="num">Issues holding report</th>
               </tr>
             </thead>
             <tbody>
@@ -50,20 +49,15 @@ export function PortfolioView({ run }: { run: PipelineRun }) {
                       return (
                         <div key={id}>
                           {m?.model.name ?? id}
-                          {m?.blocked && (
-                            <span className="pill blocked" style={{ marginLeft: 6 }}>
-                              blocked
-                            </span>
-                          )}
                         </div>
                       );
                     })}
                   </td>
                   <td>
                     {p.eligible ? (
-                      <span className="pill ok">Eligible</span>
+                      <span className="pill ok">Ready</span>
                     ) : (
-                      <span className="pill blocked">Blocked</span>
+                      <span className="pill blocked">On hold</span>
                     )}
                   </td>
                   <td className="num">
@@ -71,9 +65,9 @@ export function PortfolioView({ run }: { run: PipelineRun }) {
                       <button
                         className="btn"
                         onClick={() => navigate(`queue/${encodeURIComponent(p.blockedBy[0] ?? '')}`)}
-                        title="Open the first blocking exception"
+                        title="Open the first issue holding this report"
                       >
-                        {p.blockedBy.length} — investigate
+                        Review {p.blockedBy.length}
                       </button>
                     ) : (
                       <span className="text-muted">0</span>
@@ -88,18 +82,18 @@ export function PortfolioView({ run }: { run: PipelineRun }) {
 
       <div className="panel">
         <div className="panel-head">
-          <h2>Counterparties</h2>
-          <span className="hint">Open issues and linked synthetic exposure</span>
+          <h2>Airlines in review</h2>
+          <span className="hint">Issues requiring attention and linked demonstration exposure</span>
         </div>
         <div className="table-wrap">
           <table>
             <thead>
               <tr>
-                <th>Counterparty</th>
-                <th className="num">Open exceptions</th>
+                <th>Airline</th>
+                <th className="num">Issues to review</th>
                 <th className="num">Leases</th>
                 <th className="num">Loans</th>
-                <th className="num">Linked exposure</th>
+                <th className="num">Linked portfolio exposure</th>
                 <th></th>
               </tr>
             </thead>
@@ -121,7 +115,7 @@ export function PortfolioView({ run }: { run: PipelineRun }) {
                     <td className="num">{fmtMoney(counterpartyExposureUsd(c.id))}</td>
                     <td>
                       <button className="btn" onClick={() => navigate(`lineage/counterparty/${c.id}`)}>
-                        Lineage
+                        View data path
                       </button>
                     </td>
                   </tr>
