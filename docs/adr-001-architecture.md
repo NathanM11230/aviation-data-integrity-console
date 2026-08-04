@@ -21,7 +21,7 @@ Those two goals pull in opposite directions. Enterprise scaffolding (a service l
 
 ## Rationale
 
-**Purity over layering.** The valuable claim in this product is that priority is deterministic and explainable. A pure engine makes that claim testable: 107 unit tests exercise every rule, boundary, and demonstration case in under a second with no DOM and no mocks. Adding a service/repository layer between the UI and the engine would add indirection without adding a seam anyone would use.
+**Purity over layering.** The valuable claim in this product is that priority is deterministic and explainable. A pure engine makes that claim testable: 108 unit tests exercise every rule, boundary, and demonstration case in under a second with no DOM and no mocks. Adding a service/repository layer between the UI and the engine would add indirection without adding a seam anyone would use.
 
 **Derived state prevents a class of bug that matters here.** If exception status were stored alongside decisions, a correction could leave a stale "open" flag on a finding the data no longer trips — precisely the silent inconsistency an audit-oriented tool must not have. Recomputing everything makes divergence structurally impossible. The cost is recomputation on each render; the pipeline runs on 5 records and 16 rules, so it is immaterial. A `selectRun` cache keyed on input identity keeps re-renders cheap.
 

@@ -23,6 +23,39 @@ export interface SecFiling {
   equity: number;
 }
 
+export interface SecFilingReference {
+  ticker: string;
+  airline: string;
+  accession: string;
+  filed: string;
+  filingUrl: string;
+}
+
+/** Human-readable SEC filing pages supporting the FY2025 sample financials. */
+export const SEC_FILING_REFERENCES: readonly SecFilingReference[] = [
+  {
+    ticker: 'UAL',
+    airline: 'United Airlines Holdings',
+    accession: '0000100517-26-000023',
+    filed: '2026-02-12',
+    filingUrl: 'https://www.sec.gov/Archives/edgar/data/100517/000010051726000023/0000100517-26-000023-index.htm',
+  },
+  {
+    ticker: 'DAL',
+    airline: 'Delta Air Lines',
+    accession: '0000027904-26-000013',
+    filed: '2026-02-11',
+    filingUrl: 'https://www.sec.gov/Archives/edgar/data/27904/000002790426000013/0000027904-26-000013-index.htm',
+  },
+  {
+    ticker: 'AAL',
+    airline: 'American Airlines Group',
+    accession: '0000006201-26-000014',
+    filed: '2026-02-18',
+    filingUrl: 'https://www.sec.gov/Archives/edgar/data/6201/000000620126000014/0000006201-26-000014-index.htm',
+  },
+];
+
 export const SEC_FILINGS_FY2025: readonly SecFiling[] = [
   {
     ticker: 'UAL',

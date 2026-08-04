@@ -57,7 +57,7 @@ src/
   ui/                    Presentation only; no validation logic
 ```
 
-The engine is pure and synchronous: `runPipeline(feed, published, corrections, decisions, quarantines)` returns the entire application state. The UI never computes a verdict; it renders one. That is why 107 unit tests can cover the product logic without rendering a component.
+The engine is pure and synchronous: `runPipeline(feed, published, corrections, decisions, quarantines)` returns the entire application state. The UI never computes a verdict; it renders one. That is why 108 unit tests can cover the product logic without rendering a component.
 
 **Data flow:** `Ingest → Normalize → Validate → Determine dependencies → Score → Human decision → Publish or quarantine → Audit`
 
@@ -183,8 +183,8 @@ npm run typecheck    # tsc -b, strict mode
 ## Testing
 
 ```bash
-npm test             # 107 unit tests (Vitest)
-npm run test:e2e     # 12 end-to-end tests (Playwright); builds and serves automatically
+npm test             # 108 unit tests (Vitest)
+npm run test:e2e     # 13 end-to-end tests (Playwright); builds and serves automatically
 ```
 
 First e2e run needs the browser binary: `npx playwright install chromium`.

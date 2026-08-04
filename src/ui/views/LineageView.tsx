@@ -2,7 +2,8 @@ import type { PipelineRun } from '../../engine/pipeline';
 import { isActionable } from '../../engine/pipeline';
 import type { EntityKind } from '../../domain/types';
 import { FIELD_KEYS } from '../../domain/types';
-import { AIRCRAFT, COUNTERPARTIES, LEASES, LOANS, MODELS, PORTFOLIOS, REPORTS } from '../../data/portfolio';
+import { AIRCRAFT, COUNTERPARTIES, LEASES, LOANS, MODELS, PORTFOLIOS, REPORTS, SOURCE_SYSTEMS } from '../../data/portfolio';
+import { SEC_FILING_REFERENCES } from '../../data/secData';
 import { lineageOf, type LineageNode } from '../../engine/dependencies';
 import { ruleDef } from '../../engine/rules';
 import { navigate } from '../App';
@@ -17,6 +18,7 @@ const KINDS: { kind: EntityKind; label: string }[] = [
   { kind: 'field', label: 'Field' },
   { kind: 'model', label: 'Model' },
   { kind: 'report', label: 'Report' },
+  { kind: 'source', label: 'Source' },
 ];
 
 function optionsFor(kind: EntityKind): { id: string; label: string }[] {
@@ -37,6 +39,8 @@ function optionsFor(kind: EntityKind): { id: string; label: string }[] {
       return MODELS.map((m) => ({ id: m.id, label: m.name }));
     case 'report':
       return REPORTS.map((r) => ({ id: r.id, label: r.name }));
+    case 'source':
+      return SOURCE_SYSTEMS.map((source) => ({ id: source.id, label: source.name }));
     default:
       return [];
   }
@@ -139,6 +143,46 @@ export function LineageView({ run, kind, id }: { run: PipelineRun; kind: string 
                 <p className="lineage-col-title">Downstream (what depends on it)</p>
                 <Tree nodes={lineage.downstream} />
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {activeKind === 'source' && activeId === 'SRC-SEC' && (
+        <div className="panel">
+          <div className="panel-head">
+            <h2>Primary filing evidence</h2>
+            <span className="hint">Official SEC EDGAR pages</span>
+          </div>
+          <div className="panel-body">
+            <p className="text-muted" style={{ marginTop: 0 }}>
+              FY2025 sample financials are traceable to these public Form 10-K filings.
+            </p>
+            <div className="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Counterparty</th>
+                    <th>Accession</th>
+                    <th>Filed</th>
+                    <th>SEC filing</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {SEC_FILING_REFERENCES.map((filing) => (
+                    <tr key={filing.accession}>
+                      <td>{filing.ticker} / {filing.airline}</td>
+                      <td className="mono">{filing.accession}</td>
+                      <td>{filing.filed}</td>
+                      <td>
+                        <a href={filing.filingUrl} target="_blank" rel="noreferrer">
+                          Open FY2025 10-K
+                        </a>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </div>
         </div>

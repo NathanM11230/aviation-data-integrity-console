@@ -14,6 +14,7 @@ import {
   MODELS,
   PORTFOLIOS,
   REPORTS,
+  SOURCE_SYSTEMS,
 } from '../data/portfolio';
 
 export const TOTAL_EXPOSURE_USD =
@@ -321,10 +322,14 @@ export function lineageOf(kind: EntityRef['kind'], id: string): LineageResult | 
       };
     }
     case 'source': {
+      const source = SOURCE_SYSTEMS.find((x) => x.id === id);
+      if (!source) return null;
       return {
-        focus: ref('source', id, 'SEC EDGAR company facts'),
+        focus: ref('source', id, source.name),
         upstream: [],
-        downstream: COUNTERPARTIES.map((c) => node(counterpartyRef(c.id), 'supplies financials for')),
+        downstream: id === 'SRC-SEC'
+          ? COUNTERPARTIES.map((c) => node(counterpartyRef(c.id), 'supplies financials for'))
+          : [],
       };
     }
   }

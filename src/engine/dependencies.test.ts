@@ -135,6 +135,13 @@ describe('lineage traversal', () => {
     expect(models).toEqual(['MD-CASHFLOW', 'MD-COLLATERAL']);
   });
 
+  it('resolves the SEC source and rejects unknown sources', () => {
+    const lineage = lineageOf('source', 'SRC-SEC');
+    expect(lineage?.focus.label).toBe('SEC EDGAR company facts');
+    expect(lineage?.downstream.map((n) => n.entity.id)).toEqual(['CP-UAL', 'CP-DAL', 'CP-AAL']);
+    expect(lineageOf('source', 'SRC-MISSING')).toBeNull();
+  });
+
   it('returns null for unknown entities', () => {
     expect(lineageOf('aircraft', 'AC-99')).toBeNull();
   });
