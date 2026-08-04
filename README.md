@@ -2,11 +2,10 @@
 
 I built this project to explore a simple question: when a financial data feed has several problems, how does an analyst know which one needs attention first?
 
-A comma in a number and a $500 million balance-sheet mismatch can both make a validation check fail. They should not receive the same response. This application puts the issues that could affect real decisions at the top of the queue, shows what each issue could disrupt, and records what the reviewer decided.
+A comma in a number and a $500 million balance-sheet mismatch can both make a validation check fail. They should not receive the same response. This application puts the issues that could affect real decisions at the top of the queue, shows what each issue could disrupt, and records what the reviewer decided. It's targeted and has features specifically for the aviation-finance field.
 
 **[Open the live demo](https://nathanm11230.github.io/aviation-data-integrity-console/)**
 
-> **Project note:** This is an independent recruiting project by Nathan Mackey, a Finance and Computer Science student at Case Western Reserve University. It is not an Aerlytix product, a credit rating, an investment recommendation, or a production aviation-finance model. Public SEC figures are combined with clearly labeled synthetic aircraft, lease, loan, fund, and exposure data.
 
 ## What the app does
 
@@ -58,7 +57,7 @@ The FY2025 company figures come from those SEC filings. The application derives 
 - FY2024 comparison values
 - Feed errors, schema changes, and review scenarios
 
-None of the synthetic relationships represent a real Aerlytix portfolio or a claim about the three airlines.
+None of the synthetic relationships represent a real claim about the three airlines.
 
 ## How review priority works
 
