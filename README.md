@@ -2,11 +2,10 @@
 
 I built this project to explore a practical question:
 
-> When does it make more sense to keep an older aircraft, replace it, or temporarily lease another plane while waiting for a delivery?
+A comma in a number and a $500 million balance-sheet mismatch can both make a validation check fail. They should not receive the same response. This application puts the issues that could affect real decisions at the top of the queue, shows what each issue could disrupt, and records what the reviewer decided. It's targeted and has features specifically for the aviation-finance field.
 
 The application uses Delta Air Lines as a public case study. It focuses on Delta's 77 Boeing 737-800s, which averaged 24.3 years old at the end of 2025, and the company's order for 100 Boeing 737-10 aircraft.
 
-**[Open the live project](https://nathanm11230.github.io/aviation-data-integrity-console/)**
 
 This is an independent educational and recruiting project by Nathan Mackey, a Finance and Computer Science student at Case Western Reserve University. It is not affiliated with Delta, endorsed by Delta, or intended to predict the company's actual fleet plan.
 
@@ -59,7 +58,7 @@ Sources were checked on **August 5, 2026**.
 - [EIA Gulf Coast jet-fuel spot prices](https://www.eia.gov/dnav/pet/hist/LeafHandler.ashx?f=W&n=PET&s=EER_EPJK_PF4_RGC_DPG)
 - [BTS Air Carrier Financial Schedule P-5.2](https://www.transtats.bts.gov/DL_SelectFields.aspx?QO_fu146_anzr=Nv4+Pn44vr4+Sv0n0pvny&gnoyr_VQ=FMK)
 
-The latest EIA value shown in the app is a market reference, not Delta's realized fuel cost. Delta's reported average includes refinery results and hedging activity.
+None of the synthetic relationships represent a real claim about the three airlines.
 
 ## How the comparison works
 
