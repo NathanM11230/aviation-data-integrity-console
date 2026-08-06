@@ -92,6 +92,16 @@ export interface StrategyResult {
   endAverageAge: number;
 }
 
+export type LiveCalculationId = 'fuel' | 'delivery' | 'maintenance' | 'demand';
+
+export interface LiveCalculation {
+  id: LiveCalculationId;
+  label: string;
+  equation: string;
+  result: string;
+  explanation: string;
+}
+
 export interface ScenarioResult {
   assumptions: ScenarioAssumptions;
   strategies: Record<StrategyId, StrategyResult>;
@@ -102,6 +112,7 @@ export interface ScenarioResult {
   firstDeliveryYear: number;
   mostInfluentialAssumption: string;
   changeSummary: string;
+  liveCalculations: LiveCalculation[];
   formulas: string[];
   factIds: string[];
   assumptionIds: string[];

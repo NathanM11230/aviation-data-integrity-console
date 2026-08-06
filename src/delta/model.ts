@@ -2,6 +2,7 @@ import { factById } from './data';
 import type {
   ScenarioAssumptions,
   ScenarioResult,
+  LiveCalculation,
   StrategyId,
   StrategyResult,
   YearResult,
@@ -301,6 +302,50 @@ function summarizeChanges(assumptions: ScenarioAssumptions): string {
   return changes.length === 0 ? 'This is the starting scenario.' : `Changed from the starting scenario: ${changes.join(', ')}.`;
 }
 
+function liveCalculations(
+  assumptions: ScenarioAssumptions,
+  strategies: Record<StrategyId, StrategyResult>,
+): LiveCalculation[] {
+  const fleetSize = Number(factById('b737-800-count').value);
+  const firstKeepYear = strategies.keep.years[0]!;
+  const finalKeepYear = strategies.keep.years.at(-1)!;
+  const effectiveHours = firstKeepYear.fuelCostM * 1_000_000
+    / (fleetSize * assumptions.oldFuelBurnGallonsPerHour * assumptions.fuelPricePerGallon);
+  const delayLabel = assumptions.deliveryDelayYears === 1 ? '1 year' : `${assumptions.deliveryDelayYears} years`;
+  const demandPeriods = MODEL_END_YEAR - MODEL_START_YEAR;
+
+  return [
+    {
+      id: 'fuel',
+      label: 'Estimated 737-800 fuel cost in 2026',
+      equation: `${fleetSize} planes x ${Math.round(effectiveHours).toLocaleString()} effective hr x ${assumptions.oldFuelBurnGallonsPerHour.toLocaleString()} gal/hr x $${assumptions.fuelPricePerGallon.toFixed(2)}`,
+      result: `$${firstKeepYear.fuelCostM.toFixed(1)}M`,
+      explanation: 'This is the current fleet fuel bill used in the comparison. The effective hours never exceed the flying needed by the scenario.',
+    },
+    {
+      id: 'delivery',
+      label: 'First modeled 737-10 arrival',
+      equation: `2027 reported first delivery + ${delayLabel}`,
+      result: String(2027 + assumptions.deliveryDelayYears),
+      explanation: 'Every allocated 737-10 delivery moves by the selected delay.',
+    },
+    {
+      id: 'maintenance',
+      label: 'Estimated 737-800 maintenance in 2026',
+      equation: `${fleetSize} planes x $${assumptions.oldMaintenancePerPlaneM.toFixed(1)}M x (1 ${assumptions.maintenanceChangePct >= 0 ? '+' : '-'} ${Math.abs(assumptions.maintenanceChangePct)}%)`,
+      result: `$${firstKeepYear.maintenanceCostM.toFixed(1)}M`,
+      explanation: 'Later years also include the separate annual aging increase shown on the Assumptions page.',
+    },
+    {
+      id: 'demand',
+      label: `737-800-sized aircraft needed in ${MODEL_END_YEAR}`,
+      equation: `ceil(77 x (1 + ${assumptions.annualDemandGrowthPct.toFixed(2)}%)^${demandPeriods} x 3,000 / ${assumptions.annualFlightHours.toLocaleString()})`,
+      result: `${finalKeepYear.planesNeeded} planes`,
+      explanation: 'Demand compounds each year. More hours per aircraft can cover the same flying with fewer planes.',
+    },
+  ];
+}
+
 export function runScenario(input: ScenarioAssumptions): ScenarioResult {
   const assumptions = normalizeAssumptions(input);
   const { strategies, replacementCheaperYear } = rawScenario(assumptions);
@@ -318,6 +363,7 @@ export function runScenario(input: ScenarioAssumptions): ScenarioResult {
     firstDeliveryYear: 2027 + assumptions.deliveryDelayYears,
     mostInfluentialAssumption: findMostInfluentialAssumption(assumptions, baseDifference),
     changeSummary: summarizeChanges(assumptions),
+    liveCalculations: liveCalculations(assumptions, strategies),
     formulas: [
       'Planes needed = 77 starting aircraft x travel-demand growth x 3,000 baseline hours / selected hours flown.',
       'Fuel cost = aircraft x hours flown x estimated gallons per hour x selected fuel price.',

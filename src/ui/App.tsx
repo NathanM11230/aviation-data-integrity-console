@@ -14,6 +14,7 @@ import {
 import type {
   ScenarioAssumptions,
   ScenarioResult,
+  LiveCalculationId,
   StrategyId,
   StrategyResult,
 } from '../delta/types';
@@ -170,6 +171,7 @@ function RangeControl({
   step,
   value,
   onChange,
+  onActivate,
 }: {
   id: string;
   question: string;
@@ -180,6 +182,7 @@ function RangeControl({
   step: number;
   value: number;
   onChange: (value: number) => void;
+  onActivate: () => void;
 }) {
   return (
     <div className="control-row">
@@ -194,9 +197,48 @@ function RangeControl({
         max={max}
         step={step}
         value={value}
-        onChange={(event) => onChange(Number(event.target.value))}
+        onFocus={onActivate}
+        onPointerDown={onActivate}
+        onChange={(event) => {
+          onActivate();
+          onChange(Number(event.target.value));
+        }}
       />
       <p>{context}</p>
+    </div>
+  );
+}
+
+function LiveMathPanel({ result, active, onSelect }: {
+  result: ScenarioResult;
+  active: LiveCalculationId;
+  onSelect: (id: LiveCalculationId) => void;
+}) {
+  const calculation = result.liveCalculations.find((item) => item.id === active) ?? result.liveCalculations[0]!;
+  return (
+    <div className="live-math" aria-live="polite">
+      <div className="live-math-heading">
+        <div><span>Live calculation</span><strong>See the numbers move</strong></div>
+        <div className="math-tabs" role="tablist" aria-label="Live calculations">
+          {result.liveCalculations.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              role="tab"
+              aria-selected={active === item.id}
+              className={active === item.id ? 'active' : ''}
+              onClick={() => onSelect(item.id)}
+            >
+              {item.id === 'delivery' ? 'Delivery' : `${item.id[0]!.toUpperCase()}${item.id.slice(1)}`}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className="math-receipt">
+        <span>{calculation.label}</span>
+        <div><code>{calculation.equation}</code><b>=</b><strong>{calculation.result}</strong></div>
+        <p>{calculation.explanation}</p>
+      </div>
     </div>
   );
 }
@@ -235,12 +277,15 @@ function AircraftComparison() {
 function ScenarioControls({
   assumptions,
   setAssumptions,
+  result,
   onReset,
 }: {
   assumptions: ScenarioAssumptions;
   setAssumptions: Dispatch<SetStateAction<ScenarioAssumptions>>;
+  result: ScenarioResult;
   onReset: () => void;
 }) {
+  const [activeMath, setActiveMath] = useState<LiveCalculationId>('fuel');
   const applyPreset = (values: Partial<ScenarioAssumptions>) => {
     setAssumptions(values === DEFAULT_ASSUMPTIONS ? DEFAULT_ASSUMPTIONS : { ...DEFAULT_ASSUMPTIONS, ...values });
   };
@@ -267,6 +312,7 @@ function ScenarioControls({
           max={6}
           step={0.05}
           value={assumptions.fuelPricePerGallon}
+          onActivate={() => setActiveMath('fuel')}
           onChange={(value) => updateAssumption(setAssumptions, 'fuelPricePerGallon', value)}
         />
         <RangeControl
@@ -278,6 +324,7 @@ function ScenarioControls({
           max={4}
           step={1}
           value={assumptions.deliveryDelayYears}
+          onActivate={() => setActiveMath('delivery')}
           onChange={(value) => updateAssumption(setAssumptions, 'deliveryDelayYears', value)}
         />
         <RangeControl
@@ -289,6 +336,7 @@ function ScenarioControls({
           max={40}
           step={1}
           value={assumptions.maintenanceChangePct}
+          onActivate={() => setActiveMath('maintenance')}
           onChange={(value) => updateAssumption(setAssumptions, 'maintenanceChangePct', value)}
         />
         <RangeControl
@@ -300,9 +348,11 @@ function ScenarioControls({
           max={6}
           step={0.25}
           value={assumptions.annualDemandGrowthPct}
+          onActivate={() => setActiveMath('demand')}
           onChange={(value) => updateAssumption(setAssumptions, 'annualDemandGrowthPct', value)}
         />
       </div>
+      <LiveMathPanel result={result} active={activeMath} onSelect={setActiveMath} />
     </section>
   );
 }
@@ -310,6 +360,7 @@ function ScenarioControls({
 function DecisionResult({ result }: { result: ScenarioResult }) {
   const recommended = result.strategies[result.recommendedStrategy];
   const coverage = recommended.peakPlanesShort === 0 ? 'Schedule covered' : `${recommended.peakPlanesShort} short`;
+  const strategies = Object.values(result.strategies);
   return (
     <section className="decision-result" aria-labelledby="result-title" aria-live="polite">
       <div className="result-status"><span>Suggested under these assumptions</span><strong>{recommended.shortLabel}</strong></div>
@@ -322,6 +373,20 @@ function DecisionResult({ result }: { result: ScenarioResult }) {
         <div><span>Replacement pays back</span><strong>{result.replacementCheaperYear ?? 'After 2035'}</strong><small>Versus keeping the 737-800s</small></div>
       </div>
       <div className="driver-line"><span>Biggest driver</span><strong>{result.mostInfluentialAssumption}</strong></div>
+      <div className="decision-rule">
+        <span>How the suggestion is chosen</span>
+        <p>Keep choices that cover the schedule, then select the lowest midpoint cost. A tie favors the plan without temporary leasing.</p>
+        <div className="decision-equation">
+          {strategies.map((strategy) => (
+            <div className={strategy.peakPlanesShort > 0 ? 'not-feasible' : strategy.id === result.recommendedStrategy ? 'selected' : ''} key={strategy.id}>
+              <small>{strategy.shortLabel}</small>
+              <strong>{formatMoney(strategy.tenYearCostM)}</strong>
+              <em>{strategy.peakPlanesShort > 0 ? `${strategy.peakPlanesShort} short` : 'covered'}</em>
+            </div>
+          ))}
+          <b aria-label="Suggested choice">= {recommended.shortLabel}</b>
+        </div>
+      </div>
     </section>
   );
 }
@@ -410,7 +475,7 @@ function DecisionView({
       </section>
       <AircraftComparison />
       <div className="decision-workspace">
-        <ScenarioControls assumptions={assumptions} setAssumptions={setAssumptions} onReset={onReset} />
+        <ScenarioControls assumptions={assumptions} setAssumptions={setAssumptions} result={result} onReset={onReset} />
         <DecisionResult result={result} />
       </div>
       <StrategyComparison result={result} />

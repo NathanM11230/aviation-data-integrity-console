@@ -94,6 +94,23 @@ describe('scenario model', () => {
     expect(result.formulas.length).toBeGreaterThanOrEqual(5);
   });
 
+  it('builds exact live calculation receipts from the current scenario', () => {
+    const result = runScenario({
+      ...DEFAULT_ASSUMPTIONS,
+      fuelPricePerGallon: 4.5,
+      deliveryDelayYears: 2,
+      maintenanceChangePct: 10,
+      annualDemandGrowthPct: 3,
+    });
+    const calculations = Object.fromEntries(result.liveCalculations.map((item) => [item.id, item]));
+
+    expect(calculations.fuel?.result).toBe('$831.6M');
+    expect(calculations.fuel?.equation).toContain('$4.50');
+    expect(calculations.delivery?.result).toBe('2029');
+    expect(calculations.maintenance?.result).toBe('$406.6M');
+    expect(calculations.demand?.result).toBe('101 planes');
+  });
+
   it('clamps unsafe values at the model boundary', () => {
     const normalized = normalizeAssumptions({
       ...DEFAULT_ASSUMPTIONS,

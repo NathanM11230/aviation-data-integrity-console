@@ -22,10 +22,24 @@ test('updates the recommendation immediately and keeps settings in the URL', asy
   const fuel = page.getByLabel('Fuel price');
   await fuel.fill('4.5');
   await expect(page.getByText('$4.50 / gallon')).toBeVisible();
+  await expect(page.getByText('$831.6M', { exact: true })).toBeVisible();
+  await expect(page.getByRole('tab', { name: 'Fuel' })).toHaveAttribute('aria-selected', 'true');
   await expect(page).toHaveURL(/fuel=4.5/);
 
   await page.reload();
   await expect(page.getByText('$4.50 / gallon')).toBeVisible();
+});
+
+test('switches the nearby equation to the slider being used', async ({ page }) => {
+  await page.goto('');
+  await page.getByLabel('737-10 delivery delay').fill('2');
+  await expect(page.getByRole('tab', { name: 'Delivery' })).toHaveAttribute('aria-selected', 'true');
+  await expect(page.getByText('First modeled 737-10 arrival')).toBeVisible();
+  await expect(page.locator('.math-receipt strong')).toHaveText('2029');
+
+  await page.getByLabel('737-800 maintenance change').fill('10');
+  await expect(page.getByRole('tab', { name: 'Maintenance' })).toHaveAttribute('aria-selected', 'true');
+  await expect(page.locator('.math-receipt strong')).toHaveText('$406.6M');
 });
 
 test('offers three useful presets and reset', async ({ page }) => {
@@ -44,6 +58,8 @@ test('compares the three actions on the decision screen', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Replace aircraft as deliveries arrive' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Retire on plan and lease the difference' })).toBeVisible();
   await expect(page.getByText('Aircraft short', { exact: true })).toHaveCount(3);
+  await expect(page.getByText('How the suggestion is chosen')).toBeVisible();
+  await expect(page.locator('.decision-equation > div')).toHaveCount(3);
 });
 
 test('limits evidence to facts that support this case study', async ({ page }) => {
