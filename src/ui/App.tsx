@@ -14,7 +14,6 @@ import {
 import type {
   ScenarioAssumptions,
   ScenarioResult,
-  LiveCalculationId,
   StrategyId,
   StrategyResult,
 } from '../delta/types';
@@ -171,7 +170,6 @@ function RangeControl({
   step,
   value,
   onChange,
-  onActivate,
 }: {
   id: string;
   question: string;
@@ -182,7 +180,6 @@ function RangeControl({
   step: number;
   value: number;
   onChange: (value: number) => void;
-  onActivate: () => void;
 }) {
   return (
     <div className="control-row">
@@ -197,47 +194,28 @@ function RangeControl({
         max={max}
         step={step}
         value={value}
-        onFocus={onActivate}
-        onPointerDown={onActivate}
-        onChange={(event) => {
-          onActivate();
-          onChange(Number(event.target.value));
-        }}
+        onChange={(event) => onChange(Number(event.target.value))}
       />
       <p>{context}</p>
     </div>
   );
 }
 
-function LiveMathPanel({ result, active, onSelect }: {
-  result: ScenarioResult;
-  active: LiveCalculationId;
-  onSelect: (id: LiveCalculationId) => void;
-}) {
-  const calculation = result.liveCalculations.find((item) => item.id === active) ?? result.liveCalculations[0]!;
+function VariableBreakdown({ result }: { result: ScenarioResult }) {
   return (
-    <div className="live-math" aria-live="polite">
-      <div className="live-math-heading">
-        <div><span>Live calculation</span><strong>See the numbers move</strong></div>
-        <div className="math-tabs" role="tablist" aria-label="Live calculations">
-          {result.liveCalculations.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              role="tab"
-              aria-selected={active === item.id}
-              className={active === item.id ? 'active' : ''}
-              onClick={() => onSelect(item.id)}
-            >
-              {item.id === 'delivery' ? 'Delivery' : `${item.id[0]!.toUpperCase()}${item.id.slice(1)}`}
-            </button>
-          ))}
-        </div>
+    <div className="variable-breakdown">
+      <div className="variable-breakdown-heading">
+        <span>All four variables</span>
+        <strong>How each input enters the model</strong>
       </div>
-      <div className="math-receipt">
-        <span>{calculation.label}</span>
-        <div><code>{calculation.equation}</code><b>=</b><strong>{calculation.result}</strong></div>
-        <p>{calculation.explanation}</p>
+      <div className="variable-equations">
+        {result.liveCalculations.map((calculation) => (
+          <article key={calculation.id}>
+            <div><span>{calculation.id === 'delivery' ? 'Delivery' : `${calculation.id[0]!.toUpperCase()}${calculation.id.slice(1)}`}</span><strong>{calculation.label}</strong><p>{calculation.explanation}</p></div>
+            <code>{calculation.equation}</code>
+            <b>= {calculation.result}</b>
+          </article>
+        ))}
       </div>
     </div>
   );
@@ -285,7 +263,6 @@ function ScenarioControls({
   result: ScenarioResult;
   onReset: () => void;
 }) {
-  const [activeMath, setActiveMath] = useState<LiveCalculationId>('fuel');
   const applyPreset = (values: Partial<ScenarioAssumptions>) => {
     setAssumptions(values === DEFAULT_ASSUMPTIONS ? DEFAULT_ASSUMPTIONS : { ...DEFAULT_ASSUMPTIONS, ...values });
   };
@@ -312,7 +289,6 @@ function ScenarioControls({
           max={6}
           step={0.05}
           value={assumptions.fuelPricePerGallon}
-          onActivate={() => setActiveMath('fuel')}
           onChange={(value) => updateAssumption(setAssumptions, 'fuelPricePerGallon', value)}
         />
         <RangeControl
@@ -324,7 +300,6 @@ function ScenarioControls({
           max={4}
           step={1}
           value={assumptions.deliveryDelayYears}
-          onActivate={() => setActiveMath('delivery')}
           onChange={(value) => updateAssumption(setAssumptions, 'deliveryDelayYears', value)}
         />
         <RangeControl
@@ -336,7 +311,6 @@ function ScenarioControls({
           max={40}
           step={1}
           value={assumptions.maintenanceChangePct}
-          onActivate={() => setActiveMath('maintenance')}
           onChange={(value) => updateAssumption(setAssumptions, 'maintenanceChangePct', value)}
         />
         <RangeControl
@@ -348,11 +322,10 @@ function ScenarioControls({
           max={6}
           step={0.25}
           value={assumptions.annualDemandGrowthPct}
-          onActivate={() => setActiveMath('demand')}
           onChange={(value) => updateAssumption(setAssumptions, 'annualDemandGrowthPct', value)}
         />
       </div>
-      <LiveMathPanel result={result} active={activeMath} onSelect={setActiveMath} />
+      <VariableBreakdown result={result} />
     </section>
   );
 }
@@ -371,6 +344,20 @@ function DecisionResult({ result }: { result: ScenarioResult }) {
         <div><span>Cost through 2035</span><strong>{formatRange(recommended)}</strong><small>Estimated range</small></div>
         <div><span>Aircraft coverage</span><strong>{coverage}</strong><small>Worst year in the model</small></div>
         <div><span>Replacement pays back</span><strong>{result.replacementCheaperYear ?? 'After 2035'}</strong><small>Versus keeping the 737-800s</small></div>
+      </div>
+      <div className="total-cost-breakdown">
+        <div className="total-cost-heading"><span>Total calculation</span><strong>{recommended.label}</strong></div>
+        <div className="total-cost-equation">
+          <div><span>Fuel</span><strong>{formatMoney(recommended.tenYearFuelCostM, 2)}</strong><small>Aircraft x hours x fuel use x fuel price</small></div>
+          <b>+</b>
+          <div><span>Maintenance</span><strong>{formatMoney(recommended.tenYearMaintenanceCostM, 2)}</strong><small>Aircraft x upkeep, including aging</small></div>
+          <b>+</b>
+          <div><span>Aircraft and transition</span><strong>{formatMoney(recommended.tenYearAircraftCostM, 2)}</strong><small>Ownership, entry work, and leases</small></div>
+          <b>=</b>
+          <div className="total-cost-result"><span>Modeled midpoint</span><strong>{formatMoney(recommended.tenYearCostM, 2)}</strong><small>2026 through 2035</small></div>
+        </div>
+        <div className="range-equation"><code>{formatMoney(recommended.tenYearCostM, 2)} x 85% to 115%</code><b>=</b><strong>{formatRange(recommended)}</strong><span>uncertainty range</span></div>
+        <p>Each year's costs are converted to 2026 dollars using the {result.assumptions.discountRatePct}% rate, then added across 2026-2035. Displayed values are rounded.</p>
       </div>
       <div className="driver-line"><span>Biggest driver</span><strong>{result.mostInfluentialAssumption}</strong></div>
       <div className="decision-rule">

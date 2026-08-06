@@ -186,11 +186,17 @@ function calculateStrategy(id: StrategyId, assumptions: ScenarioAssumptions): St
 
   const rate = assumptions.discountRatePct / 100;
   const tenYearCostM = years.reduce((sum, row, index) => sum + row.annualCostM / (1 + rate) ** index, 0);
+  const tenYearFuelCostM = years.reduce((sum, row, index) => sum + row.fuelCostM / (1 + rate) ** index, 0);
+  const tenYearMaintenanceCostM = years.reduce((sum, row, index) => sum + row.maintenanceCostM / (1 + rate) ** index, 0);
+  const tenYearAircraftCostM = years.reduce((sum, row, index) => sum + row.ownershipCostM / (1 + rate) ** index, 0);
   return {
     id,
     ...STRATEGY_COPY[id],
     years,
     tenYearCostM,
+    tenYearFuelCostM,
+    tenYearMaintenanceCostM,
+    tenYearAircraftCostM,
     lowEstimateM: tenYearCostM * 0.85,
     highEstimateM: tenYearCostM * 1.15,
     peakPlanesShort: Math.max(...years.map((row) => row.planesShort)),
@@ -313,6 +319,7 @@ function liveCalculations(
     / (fleetSize * assumptions.oldFuelBurnGallonsPerHour * assumptions.fuelPricePerGallon);
   const delayLabel = assumptions.deliveryDelayYears === 1 ? '1 year' : `${assumptions.deliveryDelayYears} years`;
   const demandPeriods = MODEL_END_YEAR - MODEL_START_YEAR;
+  const demandOperator = assumptions.annualDemandGrowthPct >= 0 ? '+' : '-';
 
   return [
     {
@@ -339,7 +346,7 @@ function liveCalculations(
     {
       id: 'demand',
       label: `737-800-sized aircraft needed in ${MODEL_END_YEAR}`,
-      equation: `ceil(77 x (1 + ${assumptions.annualDemandGrowthPct.toFixed(2)}%)^${demandPeriods} x 3,000 / ${assumptions.annualFlightHours.toLocaleString()})`,
+      equation: `ceil(77 x (1 ${demandOperator} ${Math.abs(assumptions.annualDemandGrowthPct).toFixed(2)}%)^${demandPeriods} x 3,000 / ${assumptions.annualFlightHours.toLocaleString()})`,
       result: `${finalKeepYear.planesNeeded} planes`,
       explanation: 'Demand compounds each year. More hours per aircraft can cover the same flying with fewer planes.',
     },

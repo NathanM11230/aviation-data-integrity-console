@@ -85,6 +85,9 @@ export interface StrategyResult {
   description: string;
   years: YearResult[];
   tenYearCostM: number;
+  tenYearFuelCostM: number;
+  tenYearMaintenanceCostM: number;
+  tenYearAircraftCostM: number;
   lowEstimateM: number;
   highEstimateM: number;
   peakPlanesShort: number;

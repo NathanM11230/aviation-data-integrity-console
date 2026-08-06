@@ -32,7 +32,7 @@ Four controls drive the main decision:
 
 The result updates immediately. It shows the suggested action, estimated cost through 2035, whether the schedule has enough aircraft, when replacement becomes cheaper than continued operation, and which assumption matters most.
 
-A live calculation receipt sits beside the controls. It automatically follows the slider being used and substitutes the current values into the fuel, delivery, maintenance, or demand equation. The recommendation also shows the midpoint cost and aircraft coverage for all three choices so the winning rule is visible.
+All four variable calculations appear together beneath the controls, with the current values substituted into the fuel, delivery, maintenance, and demand equations. The recommendation breaks its total into discounted fuel, maintenance, and aircraft/transition costs, then shows how the uncertainty range and winning strategy are calculated.
 
 Detailed inputs remain editable on the Assumptions page. They include aircraft use, retirement timing, fuel burn, maintenance, aircraft price, transition work, lease cost, and the value assigned to future costs.
 

@@ -22,24 +22,37 @@ test('updates the recommendation immediately and keeps settings in the URL', asy
   const fuel = page.getByLabel('Fuel price');
   await fuel.fill('4.5');
   await expect(page.getByText('$4.50 / gallon')).toBeVisible();
-  await expect(page.getByText('$831.6M', { exact: true })).toBeVisible();
-  await expect(page.getByRole('tab', { name: 'Fuel' })).toHaveAttribute('aria-selected', 'true');
+  await expect(page.locator('.variable-equations article').filter({ hasText: 'Fuel' })).toContainText('$831.6M');
   await expect(page).toHaveURL(/fuel=4.5/);
 
   await page.reload();
   await expect(page.getByText('$4.50 / gallon')).toBeVisible();
 });
 
-test('switches the nearby equation to the slider being used', async ({ page }) => {
+test('shows all variable equations together without click-through controls', async ({ page }) => {
   await page.goto('');
   await page.getByLabel('737-10 delivery delay').fill('2');
-  await expect(page.getByRole('tab', { name: 'Delivery' })).toHaveAttribute('aria-selected', 'true');
-  await expect(page.getByText('First modeled 737-10 arrival')).toBeVisible();
-  await expect(page.locator('.math-receipt strong')).toHaveText('2029');
-
   await page.getByLabel('737-800 maintenance change').fill('10');
-  await expect(page.getByRole('tab', { name: 'Maintenance' })).toHaveAttribute('aria-selected', 'true');
-  await expect(page.locator('.math-receipt strong')).toHaveText('$406.6M');
+
+  await expect(page.locator('.variable-equations article')).toHaveCount(4);
+  await expect(page.getByText('Estimated 737-800 fuel cost in 2026')).toBeVisible();
+  await expect(page.getByText('First modeled 737-10 arrival')).toBeVisible();
+  await expect(page.getByText('Estimated 737-800 maintenance in 2026')).toBeVisible();
+  await expect(page.getByText('737-800-sized aircraft needed in 2035')).toBeVisible();
+  await expect(page.locator('.variable-equations article').filter({ hasText: 'Delivery' })).toContainText('2029');
+  await expect(page.locator('.variable-equations article').filter({ hasText: 'Maintenance' })).toContainText('$406.6M');
+  await expect(page.getByRole('tab')).toHaveCount(0);
+});
+
+test('shows exactly how the suggested total cost is assembled', async ({ page }) => {
+  await page.goto('');
+  const breakdown = page.locator('.total-cost-breakdown');
+  await expect(breakdown.getByText('Total calculation')).toBeVisible();
+  await expect(breakdown.getByText('Fuel', { exact: true })).toBeVisible();
+  await expect(breakdown.getByText('Maintenance', { exact: true })).toBeVisible();
+  await expect(breakdown.getByText('Aircraft and transition')).toBeVisible();
+  await expect(breakdown.getByText('Modeled midpoint')).toBeVisible();
+  await expect(breakdown.getByText('uncertainty range')).toBeVisible();
 });
 
 test('offers three useful presets and reset', async ({ page }) => {

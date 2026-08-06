@@ -49,6 +49,8 @@ describe('scenario model', () => {
       expect(Number.isFinite(strategy.tenYearCostM)).toBe(true);
       expect(strategy.lowEstimateM).toBeLessThan(strategy.tenYearCostM);
       expect(strategy.highEstimateM).toBeGreaterThan(strategy.tenYearCostM);
+      expect(strategy.tenYearFuelCostM + strategy.tenYearMaintenanceCostM + strategy.tenYearAircraftCostM)
+        .toBeCloseTo(strategy.tenYearCostM, 8);
     }
   });
 

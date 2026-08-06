@@ -580,121 +580,95 @@ main {
   line-height: 1.45;
 }
 
-.live-math {
+.variable-breakdown {
   margin-top: 30px;
   border-top: 2px solid var(--ink);
   border-bottom: 1px solid var(--line);
 }
 
-.live-math-heading {
+.variable-breakdown-heading {
   padding: 16px 0;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 20px;
-}
-
-.live-math-heading > div:first-child {
   display: grid;
   gap: 3px;
 }
 
-.live-math-heading > div:first-child span {
+.variable-breakdown-heading span {
   color: var(--red-dark);
   font-size: 9px;
   font-weight: 800;
   text-transform: uppercase;
 }
 
-.live-math-heading > div:first-child strong {
+.variable-breakdown-heading strong {
   color: var(--ink);
   font-family: Georgia, "Times New Roman", serif;
-  font-size: 17px;
+  font-size: 20px;
   font-weight: 500;
 }
 
-.math-tabs {
+.variable-equations {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  border: 1px solid #cbd0d3;
+  border-top: 1px solid var(--line);
 }
 
-.math-tabs button {
-  min-width: 66px;
-  min-height: 31px;
-  padding: 5px 7px;
-  border: 0;
-  border-right: 1px solid #cbd0d3;
-  background: #fff;
-  color: var(--muted);
-  cursor: pointer;
-  font-size: 9px;
-  font-weight: 750;
-}
-
-.math-tabs button:last-child {
-  border-right: 0;
-}
-
-.math-tabs button:hover {
-  color: var(--ink);
-  background: #f4f5f5;
-}
-
-.math-tabs button.active {
-  background: var(--ink);
-  color: #fff;
-}
-
-.math-receipt {
-  min-height: 152px;
-  padding: 18px 20px;
-  border-left: 5px solid var(--red);
-  background: #f4f5f5;
-}
-
-.math-receipt > span {
-  color: #596067;
-  font-size: 10px;
-  font-weight: 750;
-}
-
-.math-receipt > div {
+.variable-equations article {
   min-width: 0;
-  margin-top: 11px;
+  min-height: 122px;
+  padding: 16px;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto;
-  align-items: baseline;
-  gap: 12px;
+  grid-template-columns: minmax(150px, 0.9fr) minmax(180px, 1.2fr) auto;
+  align-items: center;
+  gap: 18px;
+  border-bottom: 1px solid var(--line);
+  border-left: 5px solid #c7cbcf;
+  background: #fff;
 }
 
-.math-receipt code {
+.variable-equations article:last-child {
+  border-bottom: 0;
+}
+
+.variable-equations article > div {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.variable-equations article > div > span {
+  color: var(--red-dark);
+  font-size: 8px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.variable-equations article > div > strong {
+  color: var(--ink);
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.variable-equations article p {
+  margin: 2px 0 0;
+  color: var(--muted);
+  font-size: 9px;
+  line-height: 1.45;
+}
+
+.variable-equations code {
   min-width: 0;
   overflow-wrap: anywhere;
-  color: var(--ink);
+  color: #3f464c;
   font-family: "Cascadia Mono", "SFMono-Regular", Consolas, monospace;
-  font-size: 11px;
+  font-size: 10px;
   line-height: 1.55;
 }
 
-.math-receipt b {
-  color: var(--muted);
-  font-size: 12px;
-}
-
-.math-receipt strong {
+.variable-equations article > b {
   color: var(--red-dark);
   font-family: Georgia, "Times New Roman", serif;
-  font-size: 23px;
+  font-size: 19px;
   font-weight: 500;
   white-space: nowrap;
-}
-
-.math-receipt p {
-  margin: 11px 0 0;
-  color: var(--muted);
-  font-size: 10px;
-  line-height: 1.5;
 }
 
 .result-status {
@@ -780,6 +754,127 @@ main {
   font-size: 22px;
   font-weight: 500;
   line-height: 1.1;
+}
+
+.total-cost-breakdown {
+  margin-top: 30px;
+  padding-top: 20px;
+  border-top: 2px solid #86aaa9;
+}
+
+.total-cost-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.total-cost-heading span {
+  color: #1e625a;
+  font-size: 9px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.total-cost-heading strong {
+  color: var(--ink);
+  font-size: 11px;
+  text-align: right;
+}
+
+.total-cost-equation {
+  margin-top: 14px;
+  display: grid;
+  grid-template-columns: minmax(80px, 1fr) 16px minmax(80px, 1fr) 16px minmax(100px, 1.15fr) 16px minmax(92px, 1fr);
+  align-items: stretch;
+  border-top: 1px solid #c7d5d7;
+  border-left: 1px solid #c7d5d7;
+}
+
+.total-cost-equation > div {
+  min-width: 0;
+  min-height: 116px;
+  padding: 11px;
+  display: grid;
+  align-content: space-between;
+  gap: 7px;
+  border-right: 1px solid #c7d5d7;
+  border-bottom: 1px solid #c7d5d7;
+  background: rgba(255, 255, 255, 0.52);
+}
+
+.total-cost-equation > b {
+  display: grid;
+  place-items: center;
+  border-right: 1px solid #c7d5d7;
+  border-bottom: 1px solid #c7d5d7;
+  background: #edf4f5;
+  color: #647174;
+  font-size: 12px;
+}
+
+.total-cost-equation span,
+.total-cost-equation small {
+  overflow-wrap: anywhere;
+  color: #647174;
+  font-size: 8px;
+  line-height: 1.35;
+}
+
+.total-cost-equation > div > strong {
+  overflow-wrap: anywhere;
+  color: var(--ink);
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 18px;
+  font-weight: 500;
+  line-height: 1.1;
+}
+
+.total-cost-equation > div.total-cost-result {
+  background: #fff;
+  box-shadow: inset 0 -4px 0 var(--teal);
+}
+
+.total-cost-equation > div.total-cost-result strong {
+  color: #1e625a;
+}
+
+.range-equation {
+  min-height: 46px;
+  padding: 10px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 9px;
+  border-right: 1px solid #c7d5d7;
+  border-bottom: 1px solid #c7d5d7;
+  border-left: 1px solid #c7d5d7;
+  background: #fff;
+}
+
+.range-equation code,
+.range-equation span {
+  color: var(--muted);
+  font-size: 9px;
+}
+
+.range-equation b {
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.range-equation strong {
+  color: var(--red-dark);
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 17px;
+  font-weight: 500;
+}
+
+.total-cost-breakdown > p {
+  margin: 10px 0 0;
+  color: #5d696c;
+  font-size: 9px;
+  line-height: 1.5;
 }
 
 .driver-line {
@@ -1634,17 +1729,12 @@ footer p {
     grid-template-columns: minmax(0, 1fr) 150px;
   }
 
-  .live-math-heading {
-    align-items: flex-start;
-    flex-direction: column;
+  .variable-equations article {
+    grid-template-columns: minmax(0, 1fr) auto;
   }
 
-  .math-tabs {
-    width: 100%;
-  }
-
-  .math-tabs button {
-    min-width: 0;
+  .variable-equations article > div {
+    grid-column: 1 / -1;
   }
 }
 
@@ -1949,24 +2039,46 @@ footer p {
     grid-column: 1 / -1;
   }
 
-  .math-tabs {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  .variable-equations article {
+    grid-template-columns: 1fr;
+    gap: 11px;
   }
 
-  .math-tabs button:nth-child(2) {
-    border-right: 0;
+  .variable-equations article > div,
+  .variable-equations code {
+    grid-column: auto;
   }
 
-  .math-tabs button:nth-child(-n + 2) {
-    border-bottom: 1px solid #cbd0d3;
+  .variable-equations article > b {
+    justify-self: start;
   }
 
-  .math-receipt > div {
-    grid-template-columns: minmax(0, 1fr) auto;
+  .total-cost-heading {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 5px;
   }
 
-  .math-receipt code {
-    grid-column: 1 / -1;
+  .total-cost-heading strong {
+    text-align: left;
+  }
+
+  .total-cost-equation {
+    grid-template-columns: 1fr;
+  }
+
+  .total-cost-equation > div {
+    min-height: 88px;
+  }
+
+  .total-cost-equation > b {
+    min-height: 28px;
+  }
+
+  .range-equation {
+    align-items: flex-start;
+    justify-content: flex-start;
+    flex-wrap: wrap;
   }
 
   .strategy-section,
