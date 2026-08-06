@@ -371,54 +371,34 @@ function LedgerDiscountedCost({ current, starting }: { current: number; starting
 function LiveDecisionLedger({ result }: { result: ScenarioResult }) {
   const strategy = result.strategies[result.recommendedStrategy];
   const startingStrategy = STARTING_SCENARIO.strategies[result.recommendedStrategy];
-  const visibleYears = strategy.years.filter(({ year }) => year <= 2031);
-  const startingYears = startingStrategy.years.filter(({ year }) => year <= 2031);
-  const visibleTotals = visibleYears.reduce(
-    (totals, year) => ({
-      fuel: totals.fuel + year.fuelCostM * year.discountFactor,
-      maintenance: totals.maintenance + year.maintenanceCostM * year.discountFactor,
-      aircraft: totals.aircraft + year.ownershipCostM * year.discountFactor,
-      total: totals.total + year.discountedCostM,
-    }),
-    { fuel: 0, maintenance: 0, aircraft: 0, total: 0 },
-  );
-  const startingTotals = startingYears.reduce(
-    (totals, year) => ({
-      fuel: totals.fuel + year.fuelCostM * year.discountFactor,
-      maintenance: totals.maintenance + year.maintenanceCostM * year.discountFactor,
-      aircraft: totals.aircraft + year.ownershipCostM * year.discountFactor,
-      total: totals.total + year.discountedCostM,
-    }),
-    { fuel: 0, maintenance: 0, aircraft: 0, total: 0 },
-  );
-  const totalChange = visibleTotals.total - startingTotals.total;
-  const peakPlanesShort = Math.max(...visibleYears.map((year) => year.planesShort));
-  const coverage = peakPlanesShort === 0 ? 'Covered' : `${peakPlanesShort} short`;
+  const totalChange = strategy.tenYearCostM - startingStrategy.tenYearCostM;
+  const coverage = strategy.peakPlanesShort === 0 ? 'Covered' : `${strategy.peakPlanesShort} short`;
 
   return (
     <section className="live-decision-ledger" aria-labelledby="live-ledger-title" aria-live="polite">
       <div className="live-ledger-heading">
-        <div><span>Five years forward</span><h2 id="live-ledger-title">See the effect through 2031</h2></div>
-        <div className="live-strategy"><span>10-year suggestion</span><strong>{strategy.shortLabel}</strong></div>
+        <div><span>Live 10-year view</span><h2 id="live-ledger-title">See the effect through 2035</h2></div>
+        <div className="live-strategy"><span>Suggested</span><strong>{strategy.shortLabel}</strong></div>
       </div>
       <div className="live-ledger-metrics">
-        <div><small>2026-2031 cost</small><strong>{formatMoney(visibleTotals.total, 2)}</strong></div>
-        <div><small>Versus starting scenario</small><strong className={comparisonTone(totalChange)}>{formatSignedMoney(totalChange)} ({formatSignedPercent(visibleTotals.total, startingTotals.total)})</strong></div>
-        <div><small>Coverage through 2031</small><strong>{coverage}</strong></div>
+        <div><small>2026-2035 cost</small><strong>{formatMoney(strategy.tenYearCostM, 2)}</strong></div>
+        <div><small>Versus starting scenario</small><strong className={comparisonTone(totalChange)}>{formatSignedMoney(totalChange)} ({formatSignedPercent(strategy.tenYearCostM, startingStrategy.tenYearCostM)})</strong></div>
+        <div><small>Coverage through 2035</small><strong>{coverage}</strong></div>
         <div><small>Most sensitive input</small><strong>{result.mostInfluentialAssumption}</strong></div>
       </div>
       <p className="live-recommendation"><strong>{result.recommendationTitle}.</strong> {result.recommendationExplanation} {result.changeSummary}</p>
       <div className="live-ledger-guide"><span>Current value</span><span>Starting value</span><span>Change from start</span></div>
       <div className="ledger-wrap live-ledger-wrap">
         <table className="cost-ledger live-cost-ledger">
-          <thead><tr><th>Year</th><th>Fleet: old / new / leased</th><th>Arrivals</th><th>Fuel</th><th>Maintenance</th><th>Aircraft</th><th>2026-dollar total</th></tr></thead>
-          <tbody>{visibleYears.map((year, index) => {
-            const startingYear = startingYears[index]!;
+          <thead><tr><th>Year</th><th>737-800</th><th>737-10</th><th>Leased</th><th>Fuel</th><th>Maintenance</th><th>Aircraft</th><th>2026-dollar total</th></tr></thead>
+          <tbody>{strategy.years.map((year, index) => {
+            const startingYear = startingStrategy.years[index]!;
             return (
               <tr key={year.year}>
                 <th>{year.year}</th>
-                <td><LedgerValue current={`${year.oldPlanes} / ${year.newPlanes} / ${year.leasedPlanes}`} starting={`${startingYear.oldPlanes} / ${startingYear.newPlanes} / ${startingYear.leasedPlanes}`} /></td>
-                <td><LedgerValue current={String(year.newDeliveries)} starting={String(startingYear.newDeliveries)} /></td>
+                <td><LedgerValue current={String(year.oldPlanes)} starting={String(startingYear.oldPlanes)} /></td>
+                <td><LedgerValue current={String(year.newPlanes)} starting={String(startingYear.newPlanes)} /></td>
+                <td><LedgerValue current={String(year.leasedPlanes)} starting={String(startingYear.leasedPlanes)} /></td>
                 <td><LedgerCost current={year.fuelCostM} starting={startingYear.fuelCostM} /></td>
                 <td><LedgerCost current={year.maintenanceCostM} starting={startingYear.maintenanceCostM} /></td>
                 <td><LedgerCost current={year.ownershipCostM} starting={startingYear.ownershipCostM} /></td>
@@ -426,10 +406,10 @@ function LiveDecisionLedger({ result }: { result: ScenarioResult }) {
               </tr>
             );
           })}</tbody>
-          <tfoot><tr><th colSpan={3}>2026-2031 discounted totals</th><td><LedgerCost current={visibleTotals.fuel} starting={startingTotals.fuel} /></td><td><LedgerCost current={visibleTotals.maintenance} starting={startingTotals.maintenance} /></td><td><LedgerCost current={visibleTotals.aircraft} starting={startingTotals.aircraft} /></td><td><LedgerDiscountedCost current={visibleTotals.total} starting={startingTotals.total} /></td></tr></tfoot>
+          <tfoot><tr><th colSpan={4}>2026-2035 discounted totals</th><td><LedgerCost current={strategy.tenYearFuelCostM} starting={startingStrategy.tenYearFuelCostM} /></td><td><LedgerCost current={strategy.tenYearMaintenanceCostM} starting={startingStrategy.tenYearMaintenanceCostM} /></td><td><LedgerCost current={strategy.tenYearAircraftCostM} starting={startingStrategy.tenYearAircraftCostM} /></td><td><LedgerDiscountedCost current={strategy.tenYearCostM} starting={startingStrategy.tenYearCostM} /></td></tr></tfoot>
         </table>
       </div>
-      <p className="ledger-note">Fleet is 737-800 / 737-10 / temporary aircraft. This focused ledger shows 2026 plus five years forward; the full recommendation still uses the 2026-2035 model. Cost columns show the current amount, starting amount, and change.</p>
+      <p className="ledger-note">The three aircraft columns show 737-800s, 737-10s, and temporary leased aircraft separately. Cost columns show the current annual amount, starting amount, and change. The final column expresses each year in 2026 dollars.</p>
     </section>
   );
 }

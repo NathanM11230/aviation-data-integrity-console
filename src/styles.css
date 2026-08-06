@@ -1415,17 +1415,15 @@ main {
   width: 70px;
 }
 
-.live-cost-ledger th:nth-child(2) {
-  width: 155px;
+.live-cost-ledger th:nth-child(2),
+.live-cost-ledger th:nth-child(3),
+.live-cost-ledger th:nth-child(4) {
+  width: 72px;
 }
 
-.live-cost-ledger th:nth-child(3) {
-  width: 84px;
-}
-
-.live-cost-ledger th:nth-child(4),
 .live-cost-ledger th:nth-child(5),
-.live-cost-ledger th:nth-child(6) {
+.live-cost-ledger th:nth-child(6),
+.live-cost-ledger th:nth-child(7) {
   width: 125px;
 }
 
