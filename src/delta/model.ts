@@ -123,6 +123,7 @@ function calculateStrategy(id: StrategyId, assumptions: ScenarioAssumptions): St
   const newSeats = Number(factById('b737-10-seats').value);
   const deliveries = allocatedDeliverySchedule(assumptions.deliveryDelayYears);
   const years: YearResult[] = [];
+  const rate = assumptions.discountRatePct / 100;
   let delivered = 0;
   let previousNewPlanes = 0;
 
@@ -163,6 +164,8 @@ function calculateStrategy(id: StrategyId, assumptions: ScenarioAssumptions): St
       + newlyDelivered * assumptions.transitionCostPerPlaneM
       + leasedPlanes * assumptions.temporaryLeasePerPlaneM;
     const annualCostM = fuelCostM + maintenanceCostM + ownershipCostM;
+    const discountFactor = 1 / (1 + rate) ** yearsFromStart;
+    const discountedCostM = annualCostM * discountFactor;
     const totalPlanes = oldPlanes + newPlanes + leasedPlanes;
     const averageAge = totalPlanes > 0
       ? (oldPlanes * (oldAverageAge + yearsFromStart) + newPlanes * Math.max(0.5, yearsFromStart / 2) + leasedPlanes * 8) / totalPlanes
@@ -175,20 +178,23 @@ function calculateStrategy(id: StrategyId, assumptions: ScenarioAssumptions): St
       newPlanes,
       leasedPlanes,
       planesShort,
+      newDeliveries: newlyDelivered,
+      activityRatio,
       annualCostM,
       fuelCostM,
       maintenanceCostM,
       ownershipCostM,
+      discountFactor,
+      discountedCostM,
       averageAge,
     });
     previousNewPlanes = newPlanes;
   }
 
-  const rate = assumptions.discountRatePct / 100;
-  const tenYearCostM = years.reduce((sum, row, index) => sum + row.annualCostM / (1 + rate) ** index, 0);
-  const tenYearFuelCostM = years.reduce((sum, row, index) => sum + row.fuelCostM / (1 + rate) ** index, 0);
-  const tenYearMaintenanceCostM = years.reduce((sum, row, index) => sum + row.maintenanceCostM / (1 + rate) ** index, 0);
-  const tenYearAircraftCostM = years.reduce((sum, row, index) => sum + row.ownershipCostM / (1 + rate) ** index, 0);
+  const tenYearCostM = years.reduce((sum, row) => sum + row.discountedCostM, 0);
+  const tenYearFuelCostM = years.reduce((sum, row) => sum + row.fuelCostM * row.discountFactor, 0);
+  const tenYearMaintenanceCostM = years.reduce((sum, row) => sum + row.maintenanceCostM * row.discountFactor, 0);
+  const tenYearAircraftCostM = years.reduce((sum, row) => sum + row.ownershipCostM * row.discountFactor, 0);
   return {
     id,
     ...STRATEGY_COPY[id],

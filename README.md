@@ -32,7 +32,7 @@ Four controls drive the main decision:
 
 The result updates immediately. It shows the suggested action, estimated cost through 2035, whether the schedule has enough aircraft, when replacement becomes cheaper than continued operation, and which assumption matters most.
 
-All four variable calculations appear together beneath the controls, with the current values substituted into the fuel, delivery, maintenance, and demand equations. The recommendation breaks its total into discounted fuel, maintenance, and aircraft/transition costs, then shows how the uncertainty range and winning strategy are calculated.
+The complete calculation appears directly below the decision. It starts with one master discounted-cost equation, expands that total into fuel, maintenance, and aircraft costs, defines every symbol, and explains the source or role of every number. A ten-year ledger then shows the fleet counts, annual costs, discount factor, and 2026-dollar cost for each year so the rows can be reconciled to the midpoint.
 
 Detailed inputs remain editable on the Assumptions page. They include aircraft use, retirement timing, fuel burn, maintenance, aircraft price, transition work, lease cost, and the value assigned to future costs.
 

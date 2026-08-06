@@ -201,26 +201,6 @@ function RangeControl({
   );
 }
 
-function VariableBreakdown({ result }: { result: ScenarioResult }) {
-  return (
-    <div className="variable-breakdown">
-      <div className="variable-breakdown-heading">
-        <span>All four variables</span>
-        <strong>How each input enters the model</strong>
-      </div>
-      <div className="variable-equations">
-        {result.liveCalculations.map((calculation) => (
-          <article key={calculation.id}>
-            <div><span>{calculation.id === 'delivery' ? 'Delivery' : `${calculation.id[0]!.toUpperCase()}${calculation.id.slice(1)}`}</span><strong>{calculation.label}</strong><p>{calculation.explanation}</p></div>
-            <code>{calculation.equation}</code>
-            <b>= {calculation.result}</b>
-          </article>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 function AircraftComparison() {
   return (
     <section className="aircraft-comparison" aria-labelledby="aircraft-title">
@@ -255,12 +235,10 @@ function AircraftComparison() {
 function ScenarioControls({
   assumptions,
   setAssumptions,
-  result,
   onReset,
 }: {
   assumptions: ScenarioAssumptions;
   setAssumptions: Dispatch<SetStateAction<ScenarioAssumptions>>;
-  result: ScenarioResult;
   onReset: () => void;
 }) {
   const applyPreset = (values: Partial<ScenarioAssumptions>) => {
@@ -325,7 +303,6 @@ function ScenarioControls({
           onChange={(value) => updateAssumption(setAssumptions, 'annualDemandGrowthPct', value)}
         />
       </div>
-      <VariableBreakdown result={result} />
     </section>
   );
 }
@@ -345,20 +322,6 @@ function DecisionResult({ result }: { result: ScenarioResult }) {
         <div><span>Aircraft coverage</span><strong>{coverage}</strong><small>Worst year in the model</small></div>
         <div><span>Replacement pays back</span><strong>{result.replacementCheaperYear ?? 'After 2035'}</strong><small>Versus keeping the 737-800s</small></div>
       </div>
-      <div className="total-cost-breakdown">
-        <div className="total-cost-heading"><span>Total calculation</span><strong>{recommended.label}</strong></div>
-        <div className="total-cost-equation">
-          <div><span>Fuel</span><strong>{formatMoney(recommended.tenYearFuelCostM, 2)}</strong><small>Aircraft x hours x fuel use x fuel price</small></div>
-          <b>+</b>
-          <div><span>Maintenance</span><strong>{formatMoney(recommended.tenYearMaintenanceCostM, 2)}</strong><small>Aircraft x upkeep, including aging</small></div>
-          <b>+</b>
-          <div><span>Aircraft and transition</span><strong>{formatMoney(recommended.tenYearAircraftCostM, 2)}</strong><small>Ownership, entry work, and leases</small></div>
-          <b>=</b>
-          <div className="total-cost-result"><span>Modeled midpoint</span><strong>{formatMoney(recommended.tenYearCostM, 2)}</strong><small>2026 through 2035</small></div>
-        </div>
-        <div className="range-equation"><code>{formatMoney(recommended.tenYearCostM, 2)} x 85% to 115%</code><b>=</b><strong>{formatRange(recommended)}</strong><span>uncertainty range</span></div>
-        <p>Each year's costs are converted to 2026 dollars using the {result.assumptions.discountRatePct}% rate, then added across 2026-2035. Displayed values are rounded.</p>
-      </div>
       <div className="driver-line"><span>Biggest driver</span><strong>{result.mostInfluentialAssumption}</strong></div>
       <div className="decision-rule">
         <span>How the suggestion is chosen</span>
@@ -374,6 +337,147 @@ function DecisionResult({ result }: { result: ScenarioResult }) {
           <b aria-label="Suggested choice">= {recommended.shortLabel}</b>
         </div>
       </div>
+    </section>
+  );
+}
+
+type NumberOrigin = {
+  value: string;
+  name: string;
+  explanation: string;
+  kind: 'Reported' | 'Slider' | 'Estimate' | 'Model rule';
+  url?: string;
+};
+
+function formatLedgerMoney(millions: number): string {
+  return `$${millions.toFixed(1)}M`;
+}
+
+function CalculationAudit({ result }: { result: ScenarioResult }) {
+  const strategy = result.strategies[result.recommendedStrategy];
+  const a = result.assumptions;
+  const fleetSource = sourceById(factById('b737-800-count').sourceId);
+  const deliverySource = sourceById(factById('b737-10-2027').sourceId);
+  const efficiencySource = sourceById(factById('max-fuel-improvement').sourceId);
+  const fuelSource = sourceById(factById('fuel-price-2025').sourceId);
+  const maintenanceOperator = a.maintenanceChangePct >= 0 ? '+' : '-';
+  const demandOperator = a.annualDemandGrowthPct >= 0 ? '+' : '-';
+  const delayLabel = a.deliveryDelayYears === 1 ? '1 year' : `${a.deliveryDelayYears} years`;
+  const numbers: NumberOrigin[] = [
+    { value: '77', name: 'Starting 737-800 aircraft', explanation: 'Delta reported 77 aircraft at December 31, 2025.', kind: 'Reported', url: fleetSource.url },
+    { value: '2026-2035', name: 'Comparison window', explanation: 'Ten annual periods used consistently for every strategy.', kind: 'Model rule' },
+    { value: `$${a.fuelPricePerGallon.toFixed(2)}/gal`, name: 'Fuel price', explanation: 'Current scenario slider. The $2.30 starting point is Delta\'s reported 2025 average.', kind: 'Slider', url: fuelSource.url },
+    { value: `${a.annualFlightHours.toLocaleString()} hr`, name: 'Hours per aircraft', explanation: 'Editable annual flying estimate from the Assumptions page.', kind: 'Estimate' },
+    { value: `${a.oldFuelBurnGallonsPerHour.toLocaleString()} gal/hr`, name: '737-800 fuel use', explanation: 'Editable working estimate. Route and operating conditions can change actual burn.', kind: 'Estimate' },
+    { value: `${a.newFuelEfficiencyImprovementPct}%`, name: '737-10 fuel improvement', explanation: 'Editable estimate starting at Boeing\'s published MAX-family improvement.', kind: 'Estimate', url: efficiencySource.url },
+    { value: `$${a.oldMaintenancePerPlaneM.toFixed(1)}M`, name: '737-800 maintenance per year', explanation: 'Editable per-aircraft estimate because Delta does not disclose this fleet-level figure.', kind: 'Estimate' },
+    { value: `${a.maintenanceChangePct >= 0 ? '+' : ''}${a.maintenanceChangePct}%`, name: 'Maintenance scenario change', explanation: 'Current slider adjustment applied to the older fleet\'s maintenance estimate.', kind: 'Slider' },
+    { value: `${a.annualAgeMaintenanceGrowthPct}%`, name: 'Annual aging increase', explanation: 'Editable yearly increase applied to 737-800 maintenance after 2026.', kind: 'Estimate' },
+    { value: `$${a.newMaintenancePerPlaneM.toFixed(1)}M`, name: '737-10 maintenance per year', explanation: 'Editable per-aircraft estimate, not a Delta-disclosed contract value.', kind: 'Estimate' },
+    { value: `$${a.replacementPricePerPlaneM}M`, name: 'Replacement aircraft price', explanation: 'Editable estimate because Delta\'s negotiated unit price is private.', kind: 'Estimate' },
+    { value: `${a.replacementUsefulLifeYears} years`, name: 'Years used to spread aircraft price', explanation: 'Model allocation period used to compare annual ownership cost.', kind: 'Estimate' },
+    { value: `$${a.transitionCostPerPlaneM.toFixed(1)}M`, name: 'Transition cost per delivery', explanation: 'Editable allowance for training, spares, and entry-into-service work.', kind: 'Estimate' },
+    { value: `$${a.temporaryLeasePerPlaneM.toFixed(1)}M`, name: 'Temporary lease per year', explanation: 'Editable estimate applied only when the lease strategy needs another aircraft.', kind: 'Estimate' },
+    { value: `${a.discountRatePct}%`, name: 'Discount rate', explanation: 'Converts each future annual cost into 2026 dollars before summing.', kind: 'Estimate' },
+    { value: `${a.annualDemandGrowthPct >= 0 ? '+' : ''}${a.annualDemandGrowthPct.toFixed(1)}%`, name: 'Annual demand growth', explanation: 'Current slider, compounded once per year to determine aircraft needed.', kind: 'Slider' },
+    { value: '2027', name: 'Reported first delivery year', explanation: 'Delta\'s reported starting year for 737-10 commitments in the source schedule.', kind: 'Reported', url: deliverySource.url },
+    { value: delayLabel, name: 'Delivery delay', explanation: 'Current slider added to every allocated delivery year.', kind: 'Slider' },
+    { value: '21 / 30 / 13 / 13', name: 'Allocated replacement deliveries', explanation: 'Model allocation of 77 aircraft across 2027-2030, shifted by the selected delay.', kind: 'Model rule' },
+    { value: String(a.replacementStartYear), name: 'Planned replacement start', explanation: 'Editable first year in which the case study attempts retirements.', kind: 'Estimate' },
+    { value: `${a.retirementYears} years`, name: 'Replacement period', explanation: 'Editable period used to spread retirement of all 77 aircraft.', kind: 'Estimate' },
+    { value: '1,000,000', name: 'Dollar-unit conversion', explanation: 'Converts dollar calculations into the millions displayed by the model.', kind: 'Model rule' },
+    { value: '85% / 115%', name: 'Uncertainty bounds', explanation: 'Displays a transparent plus-or-minus 15% range around the modeled midpoint.', kind: 'Model rule' },
+  ];
+
+  return (
+    <section className="calculation-audit" aria-labelledby="calculation-title">
+      <div className="calculation-heading">
+        <div><span>Complete calculation</span><h2 id="calculation-title">How the total is built</h2></div>
+        <p>Suggested strategy: <strong>{strategy.label}</strong></p>
+      </div>
+
+      <div className="master-equation">
+        <span>Master equation</span>
+        <code>Total cost = Sum from y=2026 to 2035 of [(Fuel_y + Maintenance_y + Aircraft_y) x 1 / (1 + {a.discountRatePct}%)^(y - 2026)]</code>
+        <div className="master-substitution">
+          <div><small>Discounted fuel</small><strong>{formatMoney(strategy.tenYearFuelCostM, 2)}</strong></div>
+          <b>+</b>
+          <div><small>Discounted maintenance</small><strong>{formatMoney(strategy.tenYearMaintenanceCostM, 2)}</strong></div>
+          <b>+</b>
+          <div><small>Discounted aircraft, transition, and leases</small><strong>{formatMoney(strategy.tenYearAircraftCostM, 2)}</strong></div>
+          <b>=</b>
+          <div className="master-total"><small>Modeled midpoint</small><strong>{formatMoney(strategy.tenYearCostM, 2)}</strong></div>
+        </div>
+        <div className="master-range"><code>{formatMoney(strategy.tenYearCostM, 2)} x 85% to 115%</code><b>=</b><strong>{formatRange(strategy)}</strong><span>uncertainty range</span></div>
+      </div>
+
+      <div className="subformula-heading"><span>Subdivisions</span><h3>What each annual cost contains</h3></div>
+      <div className="subformula-grid">
+        <article>
+          <span>Fuel in year y</span>
+          <code>[(old_y x {a.annualFlightHours.toLocaleString()} x {a.oldFuelBurnGallonsPerHour.toLocaleString()}) + (new_y x {a.annualFlightHours.toLocaleString()} x {a.oldFuelBurnGallonsPerHour.toLocaleString()} x (1 - {a.newFuelEfficiencyImprovementPct}%)) + (leased_y x {a.annualFlightHours.toLocaleString()} x {a.oldFuelBurnGallonsPerHour.toLocaleString()})] x ${a.fuelPricePerGallon.toFixed(2)} x activity_y / 1,000,000</code>
+          <p><strong>Discounted ten-year fuel:</strong> {formatMoney(strategy.tenYearFuelCostM, 2)}. The activity factor prevents the model from charging for more flying than demand requires.</p>
+        </article>
+        <article>
+          <span>Maintenance in year y</span>
+          <code>old_y x ${a.oldMaintenancePerPlaneM.toFixed(1)}M x (1 {maintenanceOperator} {Math.abs(a.maintenanceChangePct)}%) x (1 + {a.annualAgeMaintenanceGrowthPct}%)^(y - 2026) + new_y x ${a.newMaintenancePerPlaneM.toFixed(1)}M</code>
+          <p><strong>Discounted ten-year maintenance:</strong> {formatMoney(strategy.tenYearMaintenanceCostM, 2)}. Only the older fleet receives the annual aging increase.</p>
+        </article>
+        <article>
+          <span>Aircraft, transition, and leases in year y</span>
+          <code>new_y x ${a.replacementPricePerPlaneM}M / {a.replacementUsefulLifeYears} + new_deliveries_y x ${a.transitionCostPerPlaneM.toFixed(1)}M + leased_y x ${a.temporaryLeasePerPlaneM.toFixed(1)}M</code>
+          <p><strong>Discounted ten-year aircraft cost:</strong> {formatMoney(strategy.tenYearAircraftCostM, 2)}. The purchase estimate is spread over the selected life; transition is charged once at delivery.</p>
+        </article>
+        <article>
+          <span>Aircraft needed and delivery timing</span>
+          <code>needed_y = ceil(77 x (1 {demandOperator} {Math.abs(a.annualDemandGrowthPct).toFixed(2)}%)^(y - 2026) x 3,000 / {a.annualFlightHours.toLocaleString()}); first arrival = 2027 + {delayLabel} = {result.firstDeliveryYear}</code>
+          <p>These equations determine old_y, new_y, and leased_y. They change the cost equations even though demand and delay are not separate dollar charges.</p>
+        </article>
+      </div>
+
+      <div className="symbol-key" aria-label="Equation symbol key">
+        <div><code>y</code><span>Calendar year shown in the ledger</span></div>
+        <div><code>old_y</code><span>737-800 aircraft available in that year</span></div>
+        <div><code>new_y</code><span>737-10 aircraft available in that year</span></div>
+        <div><code>leased_y</code><span>Temporary aircraft used in that year</span></div>
+        <div><code>new_deliveries_y</code><span>737-10 aircraft arriving in that year</span></div>
+        <div><code>activity_y</code><span>Share of available aircraft flying to meet demand</span></div>
+      </div>
+
+      <div className="audit-split-heading"><span>Number key</span><h3>Where every input comes from</h3></div>
+      <div className="number-origin-list">
+        {numbers.map((item) => (
+          <article key={`${item.name}-${item.value}`}>
+            <strong>{item.value}</strong>
+            <div><span>{item.name}</span><p>{item.explanation}</p></div>
+            {item.url ? <a href={item.url} target="_blank" rel="noreferrer">{item.kind}</a> : <em className={`origin-${item.kind.toLowerCase().replace(' ', '-')}`}>{item.kind}</em>}
+          </article>
+        ))}
+      </div>
+
+      <div className="audit-split-heading"><span>Ten-year ledger</span><h3>How the annual rows add to the midpoint</h3></div>
+      <div className="ledger-wrap">
+        <table className="cost-ledger">
+          <thead><tr><th>Year</th><th>Needed</th><th>Old / new / leased</th><th>New deliveries</th><th>Activity</th><th>Fuel</th><th>Maintenance</th><th>Aircraft</th><th>Annual total</th><th>Discount factor</th><th>2026-dollar cost</th></tr></thead>
+          <tbody>{strategy.years.map((year) => (
+            <tr key={year.year}>
+              <th>{year.year}</th>
+              <td>{year.planesNeeded}</td>
+              <td>{year.oldPlanes} / {year.newPlanes} / {year.leasedPlanes}</td>
+              <td>{year.newDeliveries}</td>
+              <td>{(year.activityRatio * 100).toFixed(1)}%</td>
+              <td>{formatLedgerMoney(year.fuelCostM)}</td>
+              <td>{formatLedgerMoney(year.maintenanceCostM)}</td>
+              <td>{formatLedgerMoney(year.ownershipCostM)}</td>
+              <td>{formatLedgerMoney(year.annualCostM)}</td>
+              <td>{year.discountFactor.toFixed(3)}</td>
+              <td>{formatLedgerMoney(year.discountedCostM)}</td>
+            </tr>
+          ))}</tbody>
+          <tfoot><tr><th colSpan={5}>Discounted totals</th><td>{formatMoney(strategy.tenYearFuelCostM, 2)}</td><td>{formatMoney(strategy.tenYearMaintenanceCostM, 2)}</td><td>{formatMoney(strategy.tenYearAircraftCostM, 2)}</td><td colSpan={2}>Master total</td><td>{formatMoney(strategy.tenYearCostM, 2)}</td></tr></tfoot>
+        </table>
+      </div>
+      <p className="ledger-note">Old / new / leased means 737-800 aircraft, allocated 737-10 aircraft, and temporary aircraft. Activity and discount factors are displayed to three or fewer decimals; calculations use full precision.</p>
     </section>
   );
 }
@@ -462,9 +566,10 @@ function DecisionView({
       </section>
       <AircraftComparison />
       <div className="decision-workspace">
-        <ScenarioControls assumptions={assumptions} setAssumptions={setAssumptions} result={result} onReset={onReset} />
+        <ScenarioControls assumptions={assumptions} setAssumptions={setAssumptions} onReset={onReset} />
         <DecisionResult result={result} />
       </div>
+      <CalculationAudit result={result} />
       <StrategyComparison result={result} />
       <FleetTimeline result={result} />
       <section className="reading-note"><strong>Use this as a decision exercise, not a Delta forecast.</strong><p>Public facts anchor the aircraft counts and delivery schedule. Private costs and retirement timing stay visible as assumptions.</p></section>

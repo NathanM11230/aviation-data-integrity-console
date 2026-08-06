@@ -51,6 +51,8 @@ describe('scenario model', () => {
       expect(strategy.highEstimateM).toBeGreaterThan(strategy.tenYearCostM);
       expect(strategy.tenYearFuelCostM + strategy.tenYearMaintenanceCostM + strategy.tenYearAircraftCostM)
         .toBeCloseTo(strategy.tenYearCostM, 8);
+      expect(strategy.years.reduce((sum, year) => sum + year.discountedCostM, 0))
+        .toBeCloseTo(strategy.tenYearCostM, 8);
     }
   });
 

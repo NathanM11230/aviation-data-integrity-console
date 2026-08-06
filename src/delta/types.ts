@@ -71,10 +71,14 @@ export interface YearResult {
   newPlanes: number;
   leasedPlanes: number;
   planesShort: number;
+  newDeliveries: number;
+  activityRatio: number;
   annualCostM: number;
   fuelCostM: number;
   maintenanceCostM: number;
   ownershipCostM: number;
+  discountFactor: number;
+  discountedCostM: number;
   averageAge: number;
 }
 

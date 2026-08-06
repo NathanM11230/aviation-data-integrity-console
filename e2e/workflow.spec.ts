@@ -22,44 +22,46 @@ test('updates the recommendation immediately and keeps settings in the URL', asy
   const fuel = page.getByLabel('Fuel price');
   await fuel.fill('4.5');
   await expect(page.getByText('$4.50 / gallon')).toBeVisible();
-  await expect(page.locator('.variable-equations article').filter({ hasText: 'Fuel' })).toContainText('$831.6M');
+  await expect(page.locator('.subformula-grid article').filter({ hasText: 'Fuel in year y' })).toContainText('$4.50');
   await expect(page).toHaveURL(/fuel=4.5/);
 
   await page.reload();
   await expect(page.getByText('$4.50 / gallon')).toBeVisible();
 });
 
-test('shows all variable equations together without click-through controls', async ({ page }) => {
+test('shows all cost equations together without click-through controls', async ({ page }) => {
   await page.goto('');
   await page.getByLabel('737-10 delivery delay').fill('2');
   await page.getByLabel('737-800 maintenance change').fill('10');
 
-  await expect(page.locator('.variable-equations article')).toHaveCount(4);
-  await expect(page.getByText('Estimated 737-800 fuel cost in 2026')).toBeVisible();
-  await expect(page.getByText('First modeled 737-10 arrival')).toBeVisible();
-  await expect(page.getByText('Estimated 737-800 maintenance in 2026')).toBeVisible();
-  await expect(page.getByText('737-800-sized aircraft needed in 2035')).toBeVisible();
-  await expect(page.locator('.variable-equations article').filter({ hasText: 'Delivery' })).toContainText('2029');
-  await expect(page.locator('.variable-equations article').filter({ hasText: 'Maintenance' })).toContainText('$406.6M');
+  await expect(page.locator('.subformula-grid article')).toHaveCount(4);
+  await expect(page.locator('.subformula-grid article').filter({ hasText: 'Fuel in year y' })).toBeVisible();
+  await expect(page.locator('.subformula-grid article').filter({ hasText: 'Maintenance in year y' })).toContainText('(1 + 10%)');
+  await expect(page.locator('.subformula-grid article').filter({ hasText: 'Aircraft, transition, and leases' })).toBeVisible();
+  await expect(page.locator('.subformula-grid article').filter({ hasText: 'Aircraft needed and delivery timing' })).toContainText('2029');
+  await expect(page.locator('.symbol-key > div')).toHaveCount(6);
   await expect(page.getByRole('tab')).toHaveCount(0);
 });
 
-test('shows exactly how the suggested total cost is assembled', async ({ page }) => {
+test('shows a complete and reconciling cost calculation audit', async ({ page }) => {
   await page.goto('');
-  const breakdown = page.locator('.total-cost-breakdown');
-  await expect(breakdown.getByText('Total calculation')).toBeVisible();
-  await expect(breakdown.getByText('Fuel', { exact: true })).toBeVisible();
-  await expect(breakdown.getByText('Maintenance', { exact: true })).toBeVisible();
-  await expect(breakdown.getByText('Aircraft and transition')).toBeVisible();
-  await expect(breakdown.getByText('Modeled midpoint')).toBeVisible();
-  await expect(breakdown.getByText('uncertainty range')).toBeVisible();
+  const audit = page.locator('.calculation-audit');
+  await expect(audit.getByText('Master equation')).toBeVisible();
+  await expect(audit.getByText('Discounted fuel')).toBeVisible();
+  await expect(audit.getByText('Discounted maintenance')).toBeVisible();
+  await expect(audit.getByText('Discounted aircraft, transition, and leases')).toBeVisible();
+  await expect(audit.getByText('Modeled midpoint', { exact: true })).toBeVisible();
+  await expect(audit.getByText('uncertainty range', { exact: true })).toBeVisible();
+  await expect(audit.locator('.number-origin-list article')).toHaveCount(23);
+  await expect(audit.locator('.cost-ledger tbody tr')).toHaveCount(10);
+  await expect(audit.locator('.cost-ledger tfoot')).toContainText('Master total');
 });
 
 test('offers three useful presets and reset', async ({ page }) => {
   await page.goto('');
   await page.getByRole('button', { name: /Delivery stress/ }).click();
   await expect(page.getByText('2 years late')).toBeVisible();
-  await expect(page.getByText('+10%', { exact: true })).toBeVisible();
+  await expect(page.getByLabel('737-800 maintenance change')).toHaveValue('10');
   await page.getByRole('button', { name: 'Reset' }).click();
   await expect(page.getByText('On schedule')).toBeVisible();
 });
