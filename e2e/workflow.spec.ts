@@ -8,67 +8,60 @@ async function expectNoHorizontalOverflow(page: Page): Promise<void> {
   expect(sizes.document).toBeLessThanOrEqual(sizes.viewport);
 }
 
-test('opens directly on the decision tool', async ({ page }) => {
+test('opens on the focused 737 replacement decision', async ({ page }) => {
   await page.goto('');
-  await expect(page.getByRole('heading', { level: 1 })).toContainText(/Keep|Replace|Lease/);
-  await expect(page.getByText('Modeled example: 737-800 to 737-10')).toBeVisible();
-  await expect(page.getByText('77 planes', { exact: true })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'What could change the answer?' })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Results for this scenario' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'When should Delta replace its 737-800s?' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'The replacement question' })).toBeVisible();
+  await expect(page.getByText('Boeing 737-800', { exact: true })).toBeVisible();
+  await expect(page.getByText('Boeing 737-10', { exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'What changes the answer?' })).toBeVisible();
 });
 
-test('updates results immediately and keeps settings in the URL', async ({ page }) => {
+test('updates the recommendation immediately and keeps settings in the URL', async ({ page }) => {
   await page.goto('');
-  const fuel = page.getByLabel('What if fuel becomes more expensive?');
+  const fuel = page.getByLabel('Fuel price');
   await fuel.fill('4.5');
-  await expect(page.getByText('$4.50 per gallon')).toBeVisible();
+  await expect(page.getByText('$4.50 / gallon')).toBeVisible();
   await expect(page).toHaveURL(/fuel=4.5/);
 
   await page.reload();
-  await expect(page.getByText('$4.50 per gallon')).toBeVisible();
+  await expect(page.getByText('$4.50 / gallon')).toBeVisible();
 });
 
-test('offers understandable presets and a reset', async ({ page }) => {
+test('offers three useful presets and reset', async ({ page }) => {
   await page.goto('');
-  await page.getByRole('button', { name: 'Delivery stress' }).click();
+  await page.getByRole('button', { name: /Delivery stress/ }).click();
   await expect(page.getByText('2 years late')).toBeVisible();
   await expect(page.getByText('+10%', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Reset' }).click();
-  await expect(page.getByText('On the reported schedule')).toBeVisible();
+  await expect(page.getByText('On schedule')).toBeVisible();
 });
 
-test('compares all three choices with plain-language outcomes', async ({ page }) => {
-  await page.goto('#/compare');
-  await expect(page.getByRole('heading', { name: 'Compare the choices' })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Keep the older aircraft' })).toBeVisible();
+test('compares the three actions on the decision screen', async ({ page }) => {
+  await page.goto('#/decision');
+  await expect(page.getByRole('heading', { name: 'How the choices compare' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Keep and improve the 737-800s' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Replace aircraft as deliveries arrive' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Retire on plan and lease the difference' })).toBeVisible();
-  await expect(page.getByText('Planes short', { exact: true })).toHaveCount(3);
+  await expect(page.getByText('Aircraft short', { exact: true })).toHaveCount(3);
 });
 
-test('shows the complete sourced fleet without issuing unsupported recommendations', async ({ page }) => {
-  await page.goto('#/fleet');
-  await expect(page.getByRole('heading', { name: "Delta's fleet today" })).toBeVisible();
-  await expect(page.getByTestId('fleet-B737-800')).toBeVisible();
-  await expect(page.getByTestId('fleet-B767-300ER')).toBeVisible();
-  await expect(page.getByText('The model therefore treats the connection as an adjustable case study')).toBeVisible();
+test('limits evidence to facts that support this case study', async ({ page }) => {
+  await page.goto('#/evidence');
+  await expect(page.getByRole('heading', { name: 'What Delta reported' })).toBeVisible();
+  await expect(page.getByText('2 of 2 case-study checks passed')).toBeVisible();
+  await expect(page.getByText('Average age of the 737-800 fleet')).toBeVisible();
+  await expect(page.getByText('Delta advances fleet efficiency with VCT Finlets across 737NG fleet')).toBeVisible();
+  await expect(page.getByText('Complete mainline fleet')).toHaveCount(0);
 });
 
-test('keeps every source check visible and links to the SEC filing', async ({ page }) => {
-  await page.goto('#/sources');
-  await expect(page.getByText('5 of 5 checks passed')).toBeVisible();
-  await expect(page.getByText('The 737-10 delivery schedule reconciles')).toBeVisible();
-  const secLinks = page.getByRole('link', { name: 'Delta Air Lines / SEC EDGAR' });
-  expect(await secLinks.count()).toBeGreaterThan(0);
-  await expect(secLinks.first()).toHaveAttribute('href', /sec\.gov\/Archives\/edgar/);
-});
-
-test('explains formulas, assumptions, and limitations', async ({ page }) => {
-  await page.goto('#/method');
-  await expect(page.getByRole('heading', { name: 'How the case study works' })).toBeVisible();
+test('keeps private estimates visible and editable', async ({ page }) => {
+  await page.goto('#/assumptions');
+  await expect(page.getByRole('heading', { name: 'How the comparison works' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Detailed inputs' })).toBeVisible();
+  await expect(page.getByLabel('Replacement price')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'What this cannot know' })).toBeVisible();
-  await expect(page.getByText('Delta does not publicly disclose tail-level maintenance condition')).toBeVisible();
-  await expect(page.getByText('Assumptions, not Delta facts')).toBeVisible();
+  await expect(page.getByText('Delta has not disclosed that allocation.')).toBeVisible();
 });
 
 test('has no console errors or horizontal overflow on desktop', async ({ page }) => {
@@ -76,7 +69,7 @@ test('has no console errors or horizontal overflow on desktop', async ({ page })
   page.on('console', (message) => {
     if (message.type() === 'error') errors.push(message.text());
   });
-  for (const route of ['scenario', 'fleet', 'compare', 'sources', 'method']) {
+  for (const route of ['decision', 'evidence', 'assumptions']) {
     await page.goto(`#/${route}`);
     await expectNoHorizontalOverflow(page);
   }
@@ -86,11 +79,11 @@ test('has no console errors or horizontal overflow on desktop', async ({ page })
 test('works at a phone viewport without overlap or overflow', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('');
-  await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
-  await expect(page.getByLabel('What if fuel becomes more expensive?')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'When should Delta replace its 737-800s?' })).toBeVisible();
+  await expect(page.getByLabel('Fuel price')).toBeVisible();
   await expectNoHorizontalOverflow(page);
 
-  await page.goto('#/sources');
-  await expect(page.getByText('5 of 5 checks passed')).toBeVisible();
+  await page.goto('#/evidence');
+  await expect(page.getByText('2 of 2 case-study checks passed')).toBeVisible();
   await expectNoHorizontalOverflow(page);
 });

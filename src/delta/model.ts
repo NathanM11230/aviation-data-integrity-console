@@ -52,9 +52,9 @@ export const ASSUMPTION_NOTES: { id: keyof ScenarioAssumptions; label: string; n
 
 const STRATEGY_COPY: Record<StrategyId, Pick<StrategyResult, 'label' | 'shortLabel' | 'description'>> = {
   keep: {
-    label: 'Keep the older aircraft',
-    shortLabel: 'Keep',
-    description: 'Continue operating the 77 modeled 737-800s through 2035. New 737-10 deliveries are assumed to serve other fleet needs.',
+    label: 'Keep and improve the 737-800s',
+    shortLabel: 'Keep + improve',
+    description: 'Continue operating all 77 aircraft through 2035 while making Delta\'s announced efficiency improvements. No unsupported finlet savings are added to the estimate.',
   },
   replace: {
     label: 'Replace aircraft as deliveries arrive',
@@ -228,7 +228,7 @@ function explanationFor(
   if (recommendation === 'keep') {
     const saving = Math.max(0, replace.tenYearCostM - strategies.keep.tenYearCostM);
     return {
-      title: 'Keep the 737-800s longer under these assumptions',
+      title: 'Keep and improve the 737-800s for longer',
       explanation: `The model estimates that keeping the older fleet costs about $${Math.round(saving)} million less through 2035. Replacement does not recover its added ownership cost${replacementCheaperYear ? ` until ${replacementCheaperYear}` : ' within the modeled period'}.`,
     };
   }

@@ -1,6 +1,6 @@
 import type { DataCheck, DataSource, DeliveryRow, FleetRow, SourcedFact } from './types';
 
-export const DATA_SNAPSHOT = 'August 5, 2026';
+export const DATA_SNAPSHOT = 'August 6, 2026';
 
 export const SOURCES: DataSource[] = [
   {
@@ -23,12 +23,21 @@ export const SOURCES: DataSource[] = [
   },
   {
     id: 'delta-737-10-order',
-    publisher: 'Delta Air Lines',
-    title: 'Delta adds fuel-efficient Boeing 737-10 to fleet',
-    url: 'https://pro.delta.com/content/agency/gb/en/news/products---services-archive/2022/july-2022/delta-adds-state-of-the-art--fuel-efficient-boeing-737-max-to-fl.html',
+    publisher: 'Delta Air Lines Investor Relations',
+    title: 'Delta adds state-of-the-art, fuel-efficient Boeing 737 MAX to fleet',
+    url: 'https://ir.delta.com/news/news-details/2022/Delta-adds-state-of-the-art-fuel-efficient-Boeing-737-MAX-to-fleet/default.aspx',
     asOf: 'July 18, 2022',
     accessed: DATA_SNAPSHOT,
     note: 'Primary source for the planned 182-seat cabin and Delta\'s stated 20% to 30% fuel-efficiency range versus retiring aircraft.',
+  },
+  {
+    id: 'delta-737-finlets',
+    publisher: 'Delta Air Lines',
+    title: 'Delta advances fleet efficiency with VCT Finlets across 737NG fleet',
+    url: 'https://news.delta.com/delta-advances-fleet-efficiency-vct-finlets-across-737ng-fleet',
+    asOf: 'June 17, 2026',
+    accessed: DATA_SNAPSHOT,
+    note: 'Confirms Delta plans to install fuel-saving finlets across its 737-800 and 737-900ER fleets. Delta does not publish a savings percentage or installation cost.',
   },
   {
     id: 'boeing-737-max',

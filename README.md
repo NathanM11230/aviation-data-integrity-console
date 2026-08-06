@@ -1,74 +1,70 @@
-# Delta Fleet Decision Lab
+# Delta 737 Replacement Lab
 
-I built this project to explore a practical question:
+I built this project around one practical question:
 
-A comma in a number and a $500 million balance-sheet mismatch can both make a validation check fail. They should not receive the same response. This application puts the issues that could affect real decisions at the top of the queue, shows what each issue could disrupt, and records what the reviewer decided. It's targeted and has features specifically for the aviation-finance field.
-
-The application uses Delta Air Lines as a public case study. It focuses on Delta's 77 Boeing 737-800s, which averaged 24.3 years old at the end of 2025, and the company's order for 100 Boeing 737-10 aircraft.
+> What should Delta do with its 77 aging Boeing 737-800s as Boeing 737-10 deliveries approach?
 
 
-This is an independent educational and recruiting project by Nathan Mackey, a Finance and Computer Science student at Case Western Reserve University. It is not affiliated with Delta, endorsed by Delta, or intended to predict the company's actual fleet plan.
+The lab compares three possible actions:
 
-## What you can explore
+1. Keep the 737-800s in service and continue improving them.
+2. Replace aircraft only as 737-10s arrive.
+3. Retire on schedule and temporarily lease aircraft when deliveries fall short.
 
-The first screen gives a plain-language suggestion under the selected assumptions. You can change:
+This is an independent educational project by Nathan Mackey, a Finance and Computer Science student at Case Western Reserve University. It is not affiliated with Delta and does not claim to predict Delta's private fleet plan.
+
+## Why this pair?
+
+Delta reported 77 Boeing 737-800s with an average age of 24.3 years at the end of 2025. It also reported 100 committed Boeing 737-10 orders. Delta says the 737-10 will be 20% to 30% more fuel efficient than the retiring aircraft it replaces.
+
+That does **not** mean Delta has said the 737-10 order directly replaces the 737-800 fleet. It has not. Allocating 77 of those orders to this example is a visible case-study assumption.
+
+Delta also announced finlet modifications for its 737-800 and 737-900ER fleets in 2026. That makes "keep and improve" a meaningful alternative to immediate replacement. Delta did not publish an exact savings percentage or installation cost, so the model does not invent one.
+
+## What you can test
+
+Four controls drive the main decision:
 
 - Fuel price
-- Delivery delays
-- Travel-demand growth
-- Expected maintenance costs
-- How much each aircraft flies
-- When replacement begins
+- 737-10 delivery delays
+- Changes in 737-800 maintenance cost
+- Annual travel-demand growth
 
-The application immediately recalculates:
+The result updates immediately. It shows the suggested action, estimated cost through 2035, whether the schedule has enough aircraft, when replacement becomes cheaper than continued operation, and which assumption matters most.
 
-- Estimated aircraft needed
-- Planes the selected choice may be short
-- Fuel, maintenance, ownership, and temporary leasing costs
-- The year replacement becomes less expensive than continued operation
-- Average fleet age through 2035
-- Which assumption changes the result most
+Detailed inputs remain editable on the Assumptions page. They include aircraft use, retirement timing, fuel burn, maintenance, aircraft price, transition work, lease cost, and the value assigned to future costs.
 
-Three choices are compared using the same assumptions: keep the older aircraft, replace them as new aircraft arrive, or retire on schedule and temporarily lease the difference.
+## Facts versus assumptions
 
-## What is reported and what is estimated
+The distinction matters more than the recommendation.
 
-This distinction is the most important part of the project.
+**Reported facts** include fleet count, average age, seat counts, the 737-10 order and delivery schedule, Delta's 2025 fuel price, and published efficiency claims. Every displayed fact links to its source.
 
-### Reported facts
+**Model assumptions** include exact retirement years, flying hours, aircraft-level fuel use, maintenance cost, purchase price, lease cost, and assigning 77 orders to this example. Delta does not publicly disclose those details.
 
-Delta's 2025 Form 10-K supplies the mainline fleet, average ages, ownership categories, aircraft commitments, delivery timing, fuel consumption, and fuel expense. Delta and Boeing pages provide the planned seat count and published fuel-efficiency claims. The EIA supplies the latest Gulf Coast jet-fuel market reference.
-
-Every fact is stored with its original URL, date, and location in the source. Five automatic checks confirm that the fleet, ownership, aircraft-order, 737-10 delivery, and fuel totals still reconcile.
-
-### Adjustable estimates
-
-Delta does not publicly disclose the negotiated price of each 737-10, aircraft-level maintenance condition, engine shop visits, temporary lease offers, route assignments, or an exact retirement schedule for the 737-800 fleet.
-
-The model therefore treats those values as visible, adjustable estimates. Estimated outputs are shown as ranges. The project never presents an invented retirement probability or claims to know what Delta has privately decided.
-
-## Data snapshot
-
-Sources were checked on **August 5, 2026**.
+Sources were checked on **August 6, 2026**:
 
 - [Delta Air Lines 2025 Form 10-K](https://www.sec.gov/Archives/edgar/data/27904/000002790426000013/dal-20251231.htm)
 - [Delta Boeing 737 fleet media kit](https://news.delta.com/mediakit/boeing-737)
-- [Delta Boeing 737-10 order announcement](https://pro.delta.com/content/agency/gb/en/news/products---services-archive/2022/july-2022/delta-adds-state-of-the-art--fuel-efficient-boeing-737-max-to-fl.html)
+- [Delta Boeing 737-10 order announcement](https://ir.delta.com/news/news-details/2022/Delta-adds-state-of-the-art-fuel-efficient-Boeing-737-MAX-to-fleet/default.aspx)
+- [Delta's 737NG finlet announcement](https://news.delta.com/delta-advances-fleet-efficiency-vct-finlets-across-737ng-fleet)
 - [Boeing 737 MAX product page](https://www.boeing.com/commercial/737max)
-- [EIA Gulf Coast jet-fuel spot prices](https://www.eia.gov/dnav/pet/hist/LeafHandler.ashx?f=W&n=PET&s=EER_EPJK_PF4_RGC_DPG)
-- [BTS Air Carrier Financial Schedule P-5.2](https://www.transtats.bts.gov/DL_SelectFields.aspx?QO_fu146_anzr=Nv4+Pn44vr4+Sv0n0pvny&gnoyr_VQ=FMK)
+- [EIA Gulf Coast jet-fuel prices](https://www.eia.gov/dnav/pet/hist/LeafHandler.ashx?f=W&n=PET&s=EER_EPJK_PF4_RGC_DPG)
 
-None of the synthetic relationships represent a real claim about the three airlines.
+## How the model works
 
-## How the comparison works
+The comparison covers 2026 through 2035. Each strategy is evaluated using the same assumptions. For every year, the model estimates:
 
-The model covers 2026 through 2035. For every year it estimates the seats needed, aircraft available, fuel cost, maintenance cost, ownership cost, temporary leasing cost, and average age.
+- Aircraft and seats needed
+- Older, newer, and temporarily leased aircraft available
+- Fuel and maintenance cost
+- Replacement ownership and transition cost
+- Temporary leasing cost
+- Average age of the modeled fleet
 
-The filing reports 27 Boeing 737-10 deliveries in 2027, 39 in 2028, and 34 after 2028. Because Delta does not assign the last group to exact years, this case study divides it evenly between 2029 and 2030. It then allocates 77 of the 100 ordered aircraft to the example so the modeled old and new groups are the same size. Both choices are disclosed assumptions, not Delta guidance.
+Delta reports 27 Boeing 737-10 deliveries in 2027, 39 in 2028, and 34 after 2028. Because the final 34 are not assigned to exact years, this case study divides them between 2029 and 2030. It then allocates 77 of the 100 orders to the replacement example.
 
-Future annual costs are expressed in 2026 dollars using the selected rate. The interface explains each formula in ordinary language, while the calculation engine remains deterministic and testable.
-
-More detail is available in [the architecture and modeling decision record](docs/adr-001-architecture.md).
+The calculation engine is deterministic and covered by unit tests. The interface renders its outputs but does not calculate its own answers.
 
 ## Run it locally
 
@@ -81,9 +77,7 @@ npm install
 npm run dev
 ```
 
-Vite will print a local URL, normally `http://localhost:5173/aviation-data-integrity-console/`.
-
-Useful commands:
+Useful checks:
 
 ```bash
 npm run typecheck
@@ -94,34 +88,18 @@ npm run test:e2e
 
 ## Project structure
 
-The active case-study code lives in three layers:
+- `src/delta/data.ts` stores source metadata, reported facts, and reconciliation checks.
+- `src/delta/model.ts` contains the scenario calculations and input boundaries.
+- `src/ui/App.tsx` renders the decision, evidence, and assumptions pages.
+- `src/styles.css` contains the responsive interface.
+- `e2e/workflow.spec.ts` checks the key experience on desktop and mobile.
 
-```text
-primary-source facts + visible assumptions
-                    |
-                    v
-       deterministic scenario engine
-                    |
-                    v
- recommendation, comparisons, sources, and methodology
-```
-
-- `src/delta/data.ts` contains sourced fleet facts, source metadata, and data checks.
-- `src/delta/model.ts` contains the calculation engine and assumption boundaries.
-- `src/ui/App.tsx` renders the decision experience without calculating results itself.
-
-The original data-reliability engine remains in the repository with its tests as historical context. Its strongest ideas, provenance and deterministic validation, now support the Data and Sources view instead of serving as the main product.
+The original data-reliability prototype remains in the repository as historical context, but it is not part of the active interface.
 
 ## Limitations
 
-- The model examines aircraft families, not individual tail numbers.
-- Public information cannot support a real aircraft-by-aircraft retirement recommendation.
-- Purchase, maintenance, transition, and lease costs are illustrative assumptions.
-- Seat capacity is a useful comparison but does not replace route, schedule, or network analysis.
-- The model does not estimate ticket revenue lost when a strategy leaves too few aircraft.
-- Manufacturer fuel-efficiency figures are claims, not observed Delta 737-10 operating results.
-- Results are a transparent case study, not investment advice or a company forecast.
-
-## Deployment
-
-The project remains a static React application with no backend, file upload, API key, or private data. GitHub Pages can host it directly. Pushing a completed change to `main` runs the existing GitHub Actions deployment workflow.
+- This is a fleet-family case study, not an aircraft-by-aircraft retirement tool.
+- It does not know engine condition, route assignments, shop visits, negotiated prices, lease availability, or Delta's retirement plan.
+- It does not estimate revenue lost when an option leaves too few aircraft.
+- Manufacturer efficiency figures are claims, not observed Delta 737-10 operating results.
+- Results are educational estimates, not investment advice or a company forecast.
