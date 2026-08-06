@@ -32,7 +32,9 @@ Four controls drive the main decision:
 
 The result updates immediately. It shows the suggested action, estimated cost through 2035, whether the schedule has enough aircraft, when replacement becomes cheaper than continued operation, and which assumption matters most.
 
-The complete calculation appears directly below the decision. It starts with one master discounted-cost equation, expands that total into fuel, maintenance, and aircraft costs, defines every symbol, and explains the source or role of every number. A ten-year ledger then shows the fleet counts, annual costs, discount factor, and 2026-dollar cost for each year so the rows can be reconciled to the midpoint.
+The sliders and ten-year ledger share one live workspace. Moving fuel, maintenance, demand, or delivery timing immediately changes the fleet mix and annual costs beside the control. The ledger keeps only the decision-useful columns: fleet mix, arrivals, aircraft needed, fuel, maintenance, aircraft cost, and each year's total in 2026 dollars. Every cell compares the current scenario with the starting scenario while holding the strategy constant.
+
+The complete calculation follows the workspace for readers who want the underlying math. It starts with one master discounted-cost equation, expands that total into fuel, maintenance, and aircraft costs, defines every symbol, and explains the source or role of every number. Each master cost is also compared with the starting scenario.
 
 Detailed inputs remain editable on the Assumptions page. They include aircraft use, retirement timing, fuel burn, maintenance, aircraft price, transition work, lease cost, and the value assigned to future costs.
 

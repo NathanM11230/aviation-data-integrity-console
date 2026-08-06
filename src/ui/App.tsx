@@ -101,6 +101,8 @@ const STRATEGY_NOTES: Record<StrategyId, string> = {
   lease: 'A bridge when retirements or travel demand move faster than deliveries.',
 };
 
+const STARTING_SCENARIO = runScenario(DEFAULT_ASSUMPTIONS);
+
 export function navigate(path: string): void {
   window.location.hash = path.startsWith('#') ? path : `#/${path.replace(/^\//, '')}`;
 }
@@ -307,40 +309,6 @@ function ScenarioControls({
   );
 }
 
-function DecisionResult({ result }: { result: ScenarioResult }) {
-  const recommended = result.strategies[result.recommendedStrategy];
-  const coverage = recommended.peakPlanesShort === 0 ? 'Schedule covered' : `${recommended.peakPlanesShort} short`;
-  const strategies = Object.values(result.strategies);
-  return (
-    <section className="decision-result" aria-labelledby="result-title" aria-live="polite">
-      <div className="result-status"><span>Suggested under these assumptions</span><strong>{recommended.shortLabel}</strong></div>
-      <h2 id="result-title">{result.recommendationTitle}</h2>
-      <p className="result-explanation">{result.recommendationExplanation}</p>
-      <p className="change-summary">{result.changeSummary}</p>
-      <div className="outcome-grid">
-        <div><span>Cost through 2035</span><strong>{formatRange(recommended)}</strong><small>Estimated range</small></div>
-        <div><span>Aircraft coverage</span><strong>{coverage}</strong><small>Worst year in the model</small></div>
-        <div><span>Replacement pays back</span><strong>{result.replacementCheaperYear ?? 'After 2035'}</strong><small>Versus keeping the 737-800s</small></div>
-      </div>
-      <div className="driver-line"><span>Biggest driver</span><strong>{result.mostInfluentialAssumption}</strong></div>
-      <div className="decision-rule">
-        <span>How the suggestion is chosen</span>
-        <p>Keep choices that cover the schedule, then select the lowest midpoint cost. A tie favors the plan without temporary leasing.</p>
-        <div className="decision-equation">
-          {strategies.map((strategy) => (
-            <div className={strategy.peakPlanesShort > 0 ? 'not-feasible' : strategy.id === result.recommendedStrategy ? 'selected' : ''} key={strategy.id}>
-              <small>{strategy.shortLabel}</small>
-              <strong>{formatMoney(strategy.tenYearCostM)}</strong>
-              <em>{strategy.peakPlanesShort > 0 ? `${strategy.peakPlanesShort} short` : 'covered'}</em>
-            </div>
-          ))}
-          <b aria-label="Suggested choice">= {recommended.shortLabel}</b>
-        </div>
-      </div>
-    </section>
-  );
-}
-
 type NumberOrigin = {
   value: string;
   name: string;
@@ -353,8 +321,102 @@ function formatLedgerMoney(millions: number): string {
   return `$${millions.toFixed(1)}M`;
 }
 
+function formatSignedMoney(millions: number, digits = 1): string {
+  if (Math.abs(millions) < 0.05) return '$0M';
+  return `${millions > 0 ? '+' : '-'}${formatMoney(Math.abs(millions), digits)}`;
+}
+
+function formatSignedLedgerMoney(millions: number): string {
+  if (Math.abs(millions) < 0.05) return '$0.0M';
+  return `${millions > 0 ? '+' : '-'}$${Math.abs(millions).toFixed(1)}M`;
+}
+
+function formatSignedPercent(current: number, starting: number): string {
+  if (starting === 0) return 'n/a';
+  const percentage = ((current - starting) / starting) * 100;
+  if (Math.abs(percentage) < 0.05) return '0.0%';
+  return `${percentage > 0 ? '+' : ''}${percentage.toFixed(1)}%`;
+}
+
+function comparisonTone(change: number): string {
+  if (Math.abs(change) < 0.05) return 'cost-flat';
+  return change > 0 ? 'cost-up' : 'cost-down';
+}
+
+function LedgerValue({ current, starting }: { current: string; starting: string }) {
+  return <div className="ledger-value"><strong>{current}</strong><small>Start {starting}</small></div>;
+}
+
+function LedgerCost({ current, starting }: { current: number; starting: number }) {
+  const change = current - starting;
+  return (
+    <div className="ledger-value ledger-cost">
+      <strong>{formatLedgerMoney(current)}</strong>
+      <small>Start {formatLedgerMoney(starting)} <em className={comparisonTone(change)}>{formatSignedLedgerMoney(change)}</em></small>
+    </div>
+  );
+}
+
+function LedgerDiscountedCost({ current, starting }: { current: number; starting: number }) {
+  const change = current - starting;
+  return (
+    <div className="ledger-value ledger-comparison">
+      <span><small>Current</small><strong>{formatLedgerMoney(current)}</strong></span>
+      <span><small>Start</small><strong>{formatLedgerMoney(starting)}</strong></span>
+      <span className={comparisonTone(change)}><small>Change</small><strong>{formatSignedLedgerMoney(change)} ({formatSignedPercent(current, starting)})</strong></span>
+    </div>
+  );
+}
+
+function LiveDecisionLedger({ result }: { result: ScenarioResult }) {
+  const strategy = result.strategies[result.recommendedStrategy];
+  const startingStrategy = STARTING_SCENARIO.strategies[result.recommendedStrategy];
+  const totalChange = strategy.tenYearCostM - startingStrategy.tenYearCostM;
+  const coverage = strategy.peakPlanesShort === 0 ? 'Covered' : `${strategy.peakPlanesShort} short`;
+
+  return (
+    <section className="live-decision-ledger" aria-labelledby="live-ledger-title" aria-live="polite">
+      <div className="live-ledger-heading">
+        <div><span>Live 10-year view</span><h2 id="live-ledger-title">See the effect year by year</h2></div>
+        <div className="live-strategy"><span>Suggested</span><strong>{strategy.shortLabel}</strong></div>
+      </div>
+      <div className="live-ledger-metrics">
+        <div><small>Current midpoint</small><strong>{formatMoney(strategy.tenYearCostM, 2)}</strong></div>
+        <div><small>Versus starting scenario</small><strong className={comparisonTone(totalChange)}>{formatSignedMoney(totalChange)} ({formatSignedPercent(strategy.tenYearCostM, startingStrategy.tenYearCostM)})</strong></div>
+        <div><small>Aircraft coverage</small><strong>{coverage}</strong></div>
+        <div><small>Most sensitive input</small><strong>{result.mostInfluentialAssumption}</strong></div>
+      </div>
+      <p className="live-recommendation"><strong>{result.recommendationTitle}.</strong> {result.recommendationExplanation} {result.changeSummary}</p>
+      <div className="live-ledger-guide"><span>Current value</span><span>Starting value</span><span>Change from start</span></div>
+      <div className="ledger-wrap live-ledger-wrap">
+        <table className="cost-ledger live-cost-ledger">
+          <thead><tr><th>Year</th><th>Fleet: old / new / leased</th><th>Arrivals</th><th>Needed</th><th>Fuel</th><th>Maintenance</th><th>Aircraft</th><th>2026-dollar total</th></tr></thead>
+          <tbody>{strategy.years.map((year, index) => {
+            const startingYear = startingStrategy.years[index]!;
+            return (
+              <tr key={year.year}>
+                <th>{year.year}</th>
+                <td><LedgerValue current={`${year.oldPlanes} / ${year.newPlanes} / ${year.leasedPlanes}`} starting={`${startingYear.oldPlanes} / ${startingYear.newPlanes} / ${startingYear.leasedPlanes}`} /></td>
+                <td><LedgerValue current={String(year.newDeliveries)} starting={String(startingYear.newDeliveries)} /></td>
+                <td><LedgerValue current={String(year.planesNeeded)} starting={String(startingYear.planesNeeded)} /></td>
+                <td><LedgerCost current={year.fuelCostM} starting={startingYear.fuelCostM} /></td>
+                <td><LedgerCost current={year.maintenanceCostM} starting={startingYear.maintenanceCostM} /></td>
+                <td><LedgerCost current={year.ownershipCostM} starting={startingYear.ownershipCostM} /></td>
+                <td><LedgerDiscountedCost current={year.discountedCostM} starting={startingYear.discountedCostM} /></td>
+              </tr>
+            );
+          })}</tbody>
+          <tfoot><tr><th colSpan={4}>Discounted totals</th><td><LedgerCost current={strategy.tenYearFuelCostM} starting={startingStrategy.tenYearFuelCostM} /></td><td><LedgerCost current={strategy.tenYearMaintenanceCostM} starting={startingStrategy.tenYearMaintenanceCostM} /></td><td><LedgerCost current={strategy.tenYearAircraftCostM} starting={startingStrategy.tenYearAircraftCostM} /></td><td><LedgerDiscountedCost current={strategy.tenYearCostM} starting={startingStrategy.tenYearCostM} /></td></tr></tfoot>
+        </table>
+      </div>
+      <p className="ledger-note">Fleet is 737-800 / 737-10 / temporary aircraft. Cost columns show the current annual amount, the starting amount, and the change. The final column expresses each year in 2026 dollars.</p>
+    </section>
+  );
+}
+
 function CalculationAudit({ result }: { result: ScenarioResult }) {
   const strategy = result.strategies[result.recommendedStrategy];
+  const startingStrategy = STARTING_SCENARIO.strategies[result.recommendedStrategy];
   const a = result.assumptions;
   const fleetSource = sourceById(factById('b737-800-count').sourceId);
   const deliverySource = sourceById(factById('b737-10-2027').sourceId);
@@ -400,13 +462,13 @@ function CalculationAudit({ result }: { result: ScenarioResult }) {
         <span>Master equation</span>
         <code>Total cost = Sum from y=2026 to 2035 of [(Fuel_y + Maintenance_y + Aircraft_y) x 1 / (1 + {a.discountRatePct}%)^(y - 2026)]</code>
         <div className="master-substitution">
-          <div><small>Discounted fuel</small><strong>{formatMoney(strategy.tenYearFuelCostM, 2)}</strong></div>
+          <div><small>Discounted fuel</small><strong>{formatMoney(strategy.tenYearFuelCostM, 2)}</strong><span className={comparisonTone(strategy.tenYearFuelCostM - startingStrategy.tenYearFuelCostM)}>Start {formatMoney(startingStrategy.tenYearFuelCostM, 2)} | {formatSignedMoney(strategy.tenYearFuelCostM - startingStrategy.tenYearFuelCostM)} change</span></div>
           <b>+</b>
-          <div><small>Discounted maintenance</small><strong>{formatMoney(strategy.tenYearMaintenanceCostM, 2)}</strong></div>
+          <div><small>Discounted maintenance</small><strong>{formatMoney(strategy.tenYearMaintenanceCostM, 2)}</strong><span className={comparisonTone(strategy.tenYearMaintenanceCostM - startingStrategy.tenYearMaintenanceCostM)}>Start {formatMoney(startingStrategy.tenYearMaintenanceCostM, 2)} | {formatSignedMoney(strategy.tenYearMaintenanceCostM - startingStrategy.tenYearMaintenanceCostM)} change</span></div>
           <b>+</b>
-          <div><small>Discounted aircraft, transition, and leases</small><strong>{formatMoney(strategy.tenYearAircraftCostM, 2)}</strong></div>
+          <div><small>Discounted aircraft, transition, and leases</small><strong>{formatMoney(strategy.tenYearAircraftCostM, 2)}</strong><span className={comparisonTone(strategy.tenYearAircraftCostM - startingStrategy.tenYearAircraftCostM)}>Start {formatMoney(startingStrategy.tenYearAircraftCostM, 2)} | {formatSignedMoney(strategy.tenYearAircraftCostM - startingStrategy.tenYearAircraftCostM)} change</span></div>
           <b>=</b>
-          <div className="master-total"><small>Modeled midpoint</small><strong>{formatMoney(strategy.tenYearCostM, 2)}</strong></div>
+          <div className="master-total"><small>Modeled midpoint</small><strong>{formatMoney(strategy.tenYearCostM, 2)}</strong><span className={comparisonTone(strategy.tenYearCostM - startingStrategy.tenYearCostM)}>Start {formatMoney(startingStrategy.tenYearCostM, 2)} | {formatSignedMoney(strategy.tenYearCostM - startingStrategy.tenYearCostM)} ({formatSignedPercent(strategy.tenYearCostM, startingStrategy.tenYearCostM)})</span></div>
         </div>
         <div className="master-range"><code>{formatMoney(strategy.tenYearCostM, 2)} x 85% to 115%</code><b>=</b><strong>{formatRange(strategy)}</strong><span>uncertainty range</span></div>
       </div>
@@ -455,29 +517,6 @@ function CalculationAudit({ result }: { result: ScenarioResult }) {
         ))}
       </div>
 
-      <div className="audit-split-heading"><span>Ten-year ledger</span><h3>How the annual rows add to the midpoint</h3></div>
-      <div className="ledger-wrap">
-        <table className="cost-ledger">
-          <thead><tr><th>Year</th><th>Needed</th><th>Old / new / leased</th><th>New deliveries</th><th>Activity</th><th>Fuel</th><th>Maintenance</th><th>Aircraft</th><th>Annual total</th><th>Discount factor</th><th>2026-dollar cost</th></tr></thead>
-          <tbody>{strategy.years.map((year) => (
-            <tr key={year.year}>
-              <th>{year.year}</th>
-              <td>{year.planesNeeded}</td>
-              <td>{year.oldPlanes} / {year.newPlanes} / {year.leasedPlanes}</td>
-              <td>{year.newDeliveries}</td>
-              <td>{(year.activityRatio * 100).toFixed(1)}%</td>
-              <td>{formatLedgerMoney(year.fuelCostM)}</td>
-              <td>{formatLedgerMoney(year.maintenanceCostM)}</td>
-              <td>{formatLedgerMoney(year.ownershipCostM)}</td>
-              <td>{formatLedgerMoney(year.annualCostM)}</td>
-              <td>{year.discountFactor.toFixed(3)}</td>
-              <td>{formatLedgerMoney(year.discountedCostM)}</td>
-            </tr>
-          ))}</tbody>
-          <tfoot><tr><th colSpan={5}>Discounted totals</th><td>{formatMoney(strategy.tenYearFuelCostM, 2)}</td><td>{formatMoney(strategy.tenYearMaintenanceCostM, 2)}</td><td>{formatMoney(strategy.tenYearAircraftCostM, 2)}</td><td colSpan={2}>Master total</td><td>{formatMoney(strategy.tenYearCostM, 2)}</td></tr></tfoot>
-        </table>
-      </div>
-      <p className="ledger-note">Old / new / leased means 737-800 aircraft, allocated 737-10 aircraft, and temporary aircraft. Activity and discount factors are displayed to three or fewer decimals; calculations use full precision.</p>
     </section>
   );
 }
@@ -567,7 +606,7 @@ function DecisionView({
       <AircraftComparison />
       <div className="decision-workspace">
         <ScenarioControls assumptions={assumptions} setAssumptions={setAssumptions} onReset={onReset} />
-        <DecisionResult result={result} />
+        <LiveDecisionLedger result={result} />
       </div>
       <CalculationAudit result={result} />
       <StrategyComparison result={result} />

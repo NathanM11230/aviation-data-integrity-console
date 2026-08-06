@@ -15,6 +15,7 @@ test('opens on the focused 737 replacement decision', async ({ page }) => {
   await expect(page.getByText('Boeing 737-800', { exact: true })).toBeVisible();
   await expect(page.getByText('Boeing 737-10', { exact: true })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'What changes the answer?' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'See the effect year by year' })).toBeVisible();
 });
 
 test('updates the recommendation immediately and keeps settings in the URL', async ({ page }) => {
@@ -45,6 +46,7 @@ test('shows all cost equations together without click-through controls', async (
 
 test('shows a complete and reconciling cost calculation audit', async ({ page }) => {
   await page.goto('');
+  await page.getByLabel('737-800 maintenance change').fill('8');
   const audit = page.locator('.calculation-audit');
   await expect(audit.getByText('Master equation')).toBeVisible();
   await expect(audit.getByText('Discounted fuel')).toBeVisible();
@@ -52,9 +54,20 @@ test('shows a complete and reconciling cost calculation audit', async ({ page })
   await expect(audit.getByText('Discounted aircraft, transition, and leases')).toBeVisible();
   await expect(audit.getByText('Modeled midpoint', { exact: true })).toBeVisible();
   await expect(audit.getByText('uncertainty range', { exact: true })).toBeVisible();
+  await expect(audit.locator('.master-substitution > div > span')).toHaveCount(4);
   await expect(audit.locator('.number-origin-list article')).toHaveCount(23);
-  await expect(audit.locator('.cost-ledger tbody tr')).toHaveCount(10);
-  await expect(audit.locator('.cost-ledger tfoot')).toContainText('Master total');
+  await expect(audit.locator('.cost-ledger')).toHaveCount(0);
+
+  const liveLedger = page.locator('.live-decision-ledger');
+  await expect(liveLedger.getByText('Current midpoint')).toBeVisible();
+  await expect(liveLedger.getByText('Versus starting scenario')).toBeVisible();
+  await expect(liveLedger.locator('.cost-ledger tbody tr')).toHaveCount(10);
+  await expect(liveLedger.locator('.cost-ledger tfoot')).toContainText('Discounted totals');
+  const firstLedgerRow = liveLedger.locator('.cost-ledger tbody tr').filter({ hasText: '2026' });
+  await expect(firstLedgerRow.locator('.ledger-value')).toHaveCount(7);
+  await expect(firstLedgerRow.locator('.ledger-comparison')).toContainText('Current');
+  await expect(firstLedgerRow.locator('.ledger-comparison')).toContainText('Start');
+  await expect(firstLedgerRow.locator('.ledger-comparison')).toContainText('Change');
 });
 
 test('offers three useful presets and reset', async ({ page }) => {
@@ -73,8 +86,7 @@ test('compares the three actions on the decision screen', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Replace aircraft as deliveries arrive' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Retire on plan and lease the difference' })).toBeVisible();
   await expect(page.getByText('Aircraft short', { exact: true })).toHaveCount(3);
-  await expect(page.getByText('How the suggestion is chosen')).toBeVisible();
-  await expect(page.locator('.decision-equation > div')).toHaveCount(3);
+  await expect(page.locator('.strategy-card')).toHaveCount(3);
 });
 
 test('limits evidence to facts that support this case study', async ({ page }) => {
