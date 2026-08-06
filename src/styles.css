@@ -1395,44 +1395,48 @@ main {
 }
 
 .live-cost-ledger {
-  min-width: 900px;
+  width: 100%;
+  min-width: 880px;
   table-layout: fixed;
 }
 
 .live-cost-ledger th,
 .live-cost-ledger td {
-  padding: 7px 8px;
+  padding: 10px;
   line-height: 1.15;
   vertical-align: middle;
 }
 
 .live-cost-ledger thead th {
-  font-size: 8px;
+  font-size: 9px;
 }
 
 .live-cost-ledger th:nth-child(1) {
-  width: 56px;
+  width: 70px;
 }
 
 .live-cost-ledger th:nth-child(2) {
-  width: 128px;
+  width: 155px;
 }
 
-.live-cost-ledger th:nth-child(3),
-.live-cost-ledger th:nth-child(4) {
-  width: 64px;
+.live-cost-ledger th:nth-child(3) {
+  width: 84px;
 }
 
+.live-cost-ledger th:nth-child(4),
 .live-cost-ledger th:nth-child(5),
-.live-cost-ledger th:nth-child(6),
-.live-cost-ledger th:nth-child(7) {
-  width: 96px;
+.live-cost-ledger th:nth-child(6) {
+  width: 125px;
 }
 
 .live-cost-ledger th:last-child,
 .live-cost-ledger td:last-child {
-  width: 198px;
-  min-width: 198px;
+  width: 225px;
+  min-width: 225px;
+}
+
+.live-cost-ledger tbody > tr > th {
+  font-size: 12px;
 }
 
 .live-cost-ledger .ledger-value {
@@ -1440,7 +1444,7 @@ main {
 }
 
 .live-cost-ledger .ledger-value > strong {
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .live-cost-ledger .ledger-value > small,
@@ -1465,24 +1469,24 @@ main {
 }
 
 .live-cost-ledger .ledger-comparison strong {
-  font-size: 9px;
+  font-size: 10px;
 }
 
 .live-cost-ledger tfoot th,
 .live-cost-ledger tfoot td {
-  padding-top: 13px;
-  padding-bottom: 13px;
+  padding-top: 16px;
+  padding-bottom: 16px;
   border-top-width: 3px;
   background: #dcebea;
 }
 
 .live-cost-ledger tfoot th {
   color: #174f49;
-  font-size: 12px;
+  font-size: 14px;
 }
 
 .live-cost-ledger tfoot .ledger-value > strong {
-  font-size: 12px;
+  font-size: 14px;
 }
 
 .live-cost-ledger tfoot .ledger-value > small,
@@ -1492,7 +1496,7 @@ main {
 }
 
 .live-cost-ledger tfoot .ledger-comparison strong {
-  font-size: 10px;
+  font-size: 11px;
 }
 
 .live-decision-ledger > .ledger-note {

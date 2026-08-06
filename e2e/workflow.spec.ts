@@ -15,7 +15,7 @@ test('opens on the focused 737 replacement decision', async ({ page }) => {
   await expect(page.getByText('Boeing 737-800', { exact: true })).toBeVisible();
   await expect(page.getByText('Boeing 737-10', { exact: true })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'What changes the answer?' })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'See the effect year by year' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'See the effect through 2031' })).toBeVisible();
 });
 
 test('updates the recommendation immediately and keeps settings in the URL', async ({ page }) => {
@@ -59,12 +59,13 @@ test('shows a complete and reconciling cost calculation audit', async ({ page })
   await expect(audit.locator('.cost-ledger')).toHaveCount(0);
 
   const liveLedger = page.locator('.live-decision-ledger');
-  await expect(liveLedger.getByText('Current midpoint')).toBeVisible();
+  await expect(liveLedger.getByText('2026-2031 cost')).toBeVisible();
   await expect(liveLedger.getByText('Versus starting scenario')).toBeVisible();
-  await expect(liveLedger.locator('.cost-ledger tbody tr')).toHaveCount(10);
-  await expect(liveLedger.locator('.cost-ledger tfoot')).toContainText('Discounted totals');
+  await expect(liveLedger.locator('.cost-ledger tbody tr')).toHaveCount(6);
+  await expect(liveLedger.getByRole('columnheader', { name: 'Needed' })).toHaveCount(0);
+  await expect(liveLedger.locator('.cost-ledger tfoot')).toContainText('2026-2031 discounted totals');
   const firstLedgerRow = liveLedger.locator('.cost-ledger tbody tr').filter({ hasText: '2026' });
-  await expect(firstLedgerRow.locator('.ledger-value')).toHaveCount(7);
+  await expect(firstLedgerRow.locator('.ledger-value')).toHaveCount(6);
   await expect(firstLedgerRow.locator('.ledger-comparison')).toContainText('Current');
   await expect(firstLedgerRow.locator('.ledger-comparison')).toContainText('Start');
   await expect(firstLedgerRow.locator('.ledger-comparison')).toContainText('Change');
